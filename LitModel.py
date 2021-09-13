@@ -19,10 +19,10 @@ import random
 from optimizers import *
 import models
 from retriever import *
-from custom_metrics import *
+from custom_metrics import RocAucMeter, PEMeter, MD5Meter
 from pytorch_lightning.utilities.cloud_io import load as pl_load
-from pytorch_lightning.metrics.converters import _sync_ddp_if_available
-
+from pytorch_lightning.utilities.distributed import sync_ddp_if_available
+    
 class LitModel(pl.LightningModule):
     """Transfer Learning
     """
@@ -71,7 +71,7 @@ class LitModel(pl.LightningModule):
         self.save_hyperparameters()
         
         self.train_custom_metrics = {'train_wAUC': RocAucMeter(), 'train_mPE': PEMeter()}
-        self.validation_custom_metrics = {'val_wAUC': RocAucMeter(), 'val_mPE': PEMeter(), 'val_MD5':MD5Meter()}
+        self.validation_custom_metrics = {'val_wAUC': RocAucMeter(), 'val_mPE': PEMeter(), 'val_MD5': MD5Meter()}
         
         self.__build_model()
 
@@ -131,30 +131,16 @@ class LitModel(pl.LightningModule):
             
         acc = torch.eq(y_bin.view(-1), pred_bin.view(-1)).float().mean()
         metrics['acc'] = acc
-        # 3. Outputs:        
+        # 3. Outputs: 
+        print(acc)       
+        self.log("train_loss", train_loss, on_step=True, on_epoch=True, logger=True, sync_dist=True)
+        self.log("acc", acc, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+
         output = OrderedDict({'loss': train_loss,
                               'acc': acc,
-                              #'log': metrics,
+                              'log': metrics,
                               'progress_bar': metrics})
-
         return output
-
-    def training_epoch_end(self, outputs):
-        """Compute and log training loss and accuracy at the epoch level."""
-
-        train_loss_mean = torch.stack([output['loss'] for output in outputs]).mean()
-        train_acc_mean = torch.stack([output['acc'] for output in outputs]).mean()
-        
-        metrics = {'train_loss': _sync_ddp_if_available(train_loss_mean, reduce_op='avg'),
-                   'train_acc': _sync_ddp_if_available(train_acc_mean, reduce_op='avg')}
-        
-        for metric_name in self.train_custom_metrics.keys():
-            metrics[metric_name] = _sync_ddp_if_available(self.train_custom_metrics[metric_name].avg(), reduce_op='avg')
-            self.train_custom_metrics[metric_name].reset()
-            
-        metrics['step'] = self.current_epoch
-            
-        return {'log': metrics}
 
     def validation_step(self, batch, batch_idx):
         
@@ -170,31 +156,16 @@ class LitModel(pl.LightningModule):
         val_loss = self.loss(y_logits, y)
         
         metrics = {'val_loss': val_loss}
+        self.log('val_loss', val_loss, on_step=True, on_epoch=True, logger=True, sync_dist=True)
         for metric_name in self.validation_custom_metrics.keys():
             metrics[metric_name] = self.validation_custom_metrics[metric_name].update(y_logits, y)
+            self.log(metric_name, metrics[metric_name], on_step=True, on_epoch=True, logger=True, sync_dist=True)
             
         acc = torch.eq(y_bin.view(-1), pred_bin.view(-1)).float().mean()
         metrics['val_acc'] = acc
+        self.log('val_acc', acc, on_step=True, on_epoch=True, logger=True, sync_dist=True)
         
         return metrics
-    
-    def validation_epoch_end(self, outputs):
-        """Compute and log training loss and accuracy at the epoch level."""
-
-        val_loss_mean = torch.stack([output['val_loss'] for output in outputs]).mean()
-        val_acc_mean = torch.stack([output['val_acc'] for output in outputs]).mean()      
-        
-        metrics = {'val_loss': _sync_ddp_if_available(val_loss_mean, reduce_op='avg'),
-                  'val_acc': _sync_ddp_if_available(val_acc_mean, reduce_op='avg')}
-        
-        for metric_name in self.validation_custom_metrics.keys():
-            
-            metrics[metric_name] = _sync_ddp_if_available(self.validation_custom_metrics[metric_name].avg(), reduce_op='avg')
-            self.validation_custom_metrics[metric_name].reset()
-                        
-        metrics['step'] = self.current_epoch    
-            
-        return {'log': metrics}
 
     def test_step(self, batch, batch_idx):
         x, y, name = batch
@@ -255,15 +226,15 @@ class LitModel(pl.LightningModule):
 
     def setup(self, stage: str): 
         
-        qfs = ['75', '90', '95']
+        qfs = ['75']
         
         if not self.all_qfs:
             qfs = [self.qf]
         
-        classes = [ ['QF'+str(q)+'/COVER', 'QF'+str(q)+'/JUNI_0.4_bpnzac'  ,'QF'+str(q)+'/UERD_0.2_bpnzac' ,'QF'+str(q)+'/J_MiPOD_0.4_bpnzac' ] for q in qfs ]
+        classes = [ ['QF'+str(q)+'/COVER', 'QF'+str(q)+'/JUNI_0.4_bpnzac'  ,'QF'+str(q)+'/UED_0.3_bpnzac'  ] for q in qfs ]
                    
                            
-        IL_train = os.listdir(self.data_path+'QF75/COVER/TRN/')
+        IL_train = os.listdir(self.data_path+'QF75/COVER/TRN/')[:24]
         IL_val = os.listdir(self.data_path+'QF75/COVER/VAL/')
 
         dataset = []
@@ -274,7 +245,7 @@ class LitModel(pl.LightningModule):
                     dataset.append({
                         'kind': tuple([c + '/TRN' for c in cl]),
                         'image_name': (path, path, path, path),
-                        'label': (0,1,2,3),
+                        'label': (0,1,2),
                         'fold':1,
                     })
             for cl in classes:
@@ -282,7 +253,7 @@ class LitModel(pl.LightningModule):
                     dataset.append({
                         'kind': tuple([c + '/VAL' for c in cl]),
                         'image_name': (path, path, path, path),
-                        'label': (0,1,2,3),
+                        'label': (0,1,2),
                         'fold':0,
                     })
         else:

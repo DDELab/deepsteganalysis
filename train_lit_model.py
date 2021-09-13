@@ -12,7 +12,7 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import LearningRateLogger
+from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.utilities.distributed import rank_zero_only
 
 seed_everything(1994)
@@ -28,10 +28,11 @@ def setup_callbacks_loggers(args):
     else:
         log_path = log_path/('all_qfs')
     
-    wandb_logger = WandbLogger(project='imagenet-steganalysis')
-    #tb_logger = TensorBoardLogger(log_path, name=name, version=version)
-    lr_logger = LearningRateLogger(logging_interval='epoch')
-    ckpt_callback = ModelCheckpoint(filepath=log_path/version/'checkpoints/{epoch:02d}_{val_wAUC:.4f}', 
+    wandb_logger = None #WandbLogger(project='imagenet-steganalysis-test', entity='dde')
+    tb_logger = TensorBoardLogger(log_path, name=name, version=version)
+    lr_logger = LearningRateMonitor(logging_interval='epoch')
+    ckpt_callback = ModelCheckpoint(dirpath='logpath/version/checkpoints',
+                                    filename='{epoch:02d}_{val_wAUC:.4f}', 
                                     save_top_k=5, save_last=True, monitor='val_wAUC', mode='max')
    
     return ckpt_callback, wandb_logger, lr_logger
@@ -48,21 +49,20 @@ def main(args):
     
     ckpt_callback, tb_logger, lr_logger = setup_callbacks_loggers(args)
     
-    trainer = Trainer(checkpoint_callback=ckpt_callback,
-                     logger=tb_logger,
-                     callbacks=[lr_logger],
-                     gpus=args.gpus,
-                     min_epochs=args.epochs,
-                     max_epochs=args.epochs,
-                     precision=16,
-                     amp_backend='native',
-                     amp_level='O1',
-                     row_log_interval=100,
-                     log_save_interval=100,
-                     distributed_backend='ddp' if len(args.gpus) > 1 else None,
-                     benchmark=True,
-                     sync_batchnorm=True,
-                     resume_from_checkpoint=args.resume_from_checkpoint)
+    trainer = Trainer(#logger=tb_logger,
+                      callbacks=[ckpt_callback, lr_logger],
+                      gpus=args.gpus,
+                      min_epochs=args.epochs,
+                      max_epochs=args.epochs,
+                      precision=16,
+                      amp_backend='native',
+                      amp_level='O1',
+                      log_every_n_steps=100,
+                      flush_logs_every_n_steps=100,
+                      distributed_backend='ddp' if len(args.gpus) > 1 else None,
+                      benchmark=True,
+                      sync_batchnorm=True,
+                      resume_from_checkpoint=args.resume_from_checkpoint)
     
     trainer.logger.log_hyperparams(model.hparams)
     

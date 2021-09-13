@@ -4,9 +4,9 @@ from sklearn.metrics import roc_curve, auc
 import numpy as np
 import torch.nn.functional as F
 import torch
-from pytorch_lightning.metrics.metric import NumpyMetric
-from pytorch_lightning.metrics.converters import sync_ddp, _numpy_metric_conversion
-from pytorch_lightning.core.decorators import auto_move_data
+#from pytorch_lightning.metrics.metric import NumpyMetric
+from tools.decorators import _numpy_metric_conversion
+#from pytorch_lightning.core.decorators import auto_move_data
 
 
 @_numpy_metric_conversion
@@ -121,4 +121,3 @@ class PEMeter(object):
     #@sync_ddp(reduce_op='avg')
     def avg(self):
         return self.score.cuda()
-    

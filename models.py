@@ -75,7 +75,7 @@ zoo_params = {
     
     'efficientnet-b0': {
         'fc_name': '_fc',
-        'fc': nn.Linear(in_features=1280, out_features=2, bias=True),
+        'fc': nn.Linear(in_features=1280, out_features=3, bias=True),
         'init_op': partial(EfficientNet.from_pretrained, 'efficientnet-b0')
     },
     
