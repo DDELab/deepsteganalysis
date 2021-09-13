@@ -27,20 +27,13 @@ class LitModel(pl.LightningModule):
     """Transfer Learning
     """
     def __init__(self,
-                 data_path: Union[str, Path],
                  backbone: str = 'mixnet_s',
-                 batch_size: int = 32,
                  lr: float = 1e-3,
                  eps: float = 1e-8,
                  lr_scheduler_name: str = 'cos',
                  surgery: str = '',
                  decay_not_bias_norm: int = 0,
-                 pair_constraint: int = 0,
-                 qf: str = '',
-                 all_qfs: int = 1, 
                  optimizer_name: str = 'adamw',
-                 decoder: str = 'NR',
-                 num_workers: int = 6, 
                  epochs: int = 50, 
                  gpus: list = [0], 
                  seed: str = None,
@@ -48,14 +41,9 @@ class LitModel(pl.LightningModule):
                  ,**kwargs) -> None:
         
         super().__init__()
-        self.data_path = data_path
         self.epochs = epochs
         self.backbone = backbone
-        self.batch_size = batch_size
         self.lr = lr
-        self.qf = qf
-        self.all_qfs = all_qfs
-        self.num_workers = num_workers
         self.lr_scheduler_name = lr_scheduler_name
         self.optimizer_name = optimizer_name
         self.gpus = len(gpus)
@@ -63,10 +51,8 @@ class LitModel(pl.LightningModule):
         self.eps = eps
         self.surgery = surgery
         self.seed = seed
-        self.decoder = decoder
 
         self.decay_not_bias_norm = decay_not_bias_norm
-        self.pair_constraint = pair_constraint 
         
         self.save_hyperparameters()
         
@@ -132,7 +118,7 @@ class LitModel(pl.LightningModule):
         acc = torch.eq(y_bin.view(-1), pred_bin.view(-1)).float().mean()
         metrics['acc'] = acc
         # 3. Outputs: 
-        print(acc)       
+        #print(acc)       
         self.log("train_loss", train_loss, on_step=True, on_epoch=True, logger=True, sync_dist=True)
         self.log("acc", acc, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
@@ -197,13 +183,18 @@ class LitModel(pl.LightningModule):
                               lr=self.lr, 
                               **optimizer_kwargs)
         
+        train_len = len(self.trainer.datamodule.train_dataset)
+        #print("######### Training len", train_len)
+        batch_size = self.trainer.datamodule.batch_size
+        #print("########## Batch size", batch_size)
+
         if self.lr_scheduler_name == 'cos':
-            scheduler_kwargs = {'T_max': self.epochs*len(self.train_dataset)//self.gpus//self.batch_size,
+            scheduler_kwargs = {'T_max': self.epochs*train_len//self.gpus//batch_size,
                                 'eta_min':self.lr/50}
 
         elif self.lr_scheduler_name == 'onecycle':
             scheduler_kwargs = {'max_lr': self.lr, 'epochs': self.epochs,
-                                'steps_per_epoch':len(self.train_dataset)//self.gpus//self.batch_size,
+                                'steps_per_epoch':train_len//self.gpus//batch_size,
                                 'pct_start':4.0/self.epochs,'div_factor':25,'final_div_factor':2}
                                 #'div_factor':25,'final_div_factor':2}
 
@@ -219,141 +210,19 @@ class LitModel(pl.LightningModule):
 
         return [optimizer], [{'scheduler':scheduler, 'interval': interval, 'name': 'lr'}]
 
-    def prepare_data(self):
-        """Download images and prepare images datasets."""
-        
-        print('data downloaded')
-
-    def setup(self, stage: str): 
-        
-        qfs = ['75']
-        
-        if not self.all_qfs:
-            qfs = [self.qf]
-        
-        classes = [ ['QF'+str(q)+'/COVER', 'QF'+str(q)+'/JUNI_0.4_bpnzac'  ,'QF'+str(q)+'/UED_0.3_bpnzac'  ] for q in qfs ]
-                   
-                           
-        IL_train = os.listdir(self.data_path+'QF75/COVER/TRN/')[:24]
-        IL_val = os.listdir(self.data_path+'QF75/COVER/VAL/')
-
-        dataset = []
-        if self.pair_constraint:
-            retriever = TrainRetrieverPaired
-            for cl in classes:
-                for path in IL_train:
-                    dataset.append({
-                        'kind': tuple([c + '/TRN' for c in cl]),
-                        'image_name': (path, path, path, path),
-                        'label': (0,1,2),
-                        'fold':1,
-                    })
-            for cl in classes:
-                for path in IL_val:
-                    dataset.append({
-                        'kind': tuple([c + '/VAL' for c in cl]),
-                        'image_name': (path, path, path, path),
-                        'label': (0,1,2),
-                        'fold':0,
-                    })
-        else:
-            retriever = TrainRetriever
-            for cl in classes:
-                for label, kind in enumerate(cl):
-                    for path in IL_train:
-                        dataset.append({
-                            'kind': kind+'/TRN',
-                            'image_name': path,
-                            'label': label,
-                            'fold':1,
-                        })
-            for cl in classes:
-                for label, kind in enumerate(cl):
-                    for path in IL_val:
-                        dataset.append({
-                            'kind': kind+'/VAL',
-                            'image_name': path,
-                            'label': label,
-                            'fold':0,
-                        })
-            
-        random.shuffle(dataset)
-        dataset = pd.DataFrame(dataset)
-        
-        self.train_dataset = retriever(
-            data_path=self.data_path,
-            kinds=dataset[dataset['fold'] != 0].kind.values,
-            image_names=dataset[dataset['fold'] != 0].image_name.values,
-            labels=dataset[dataset['fold'] != 0].label.values,
-            transforms=get_train_transforms(),
-            num_classes=len(classes[0]),
-            decoder=self.decoder
-        )
-        
-        self.valid_dataset = retriever(
-            data_path=self.data_path,
-            kinds=dataset[dataset['fold'] == 0].kind.values,
-            image_names=dataset[dataset['fold'] == 0].image_name.values,
-            labels=dataset[dataset['fold'] == 0].label.values,
-            transforms=get_valid_transforms(),
-            num_classes=len(classes[0]),
-            decoder=self.decoder
-        )
-    
-    def __dataloader(self, train):
-        """Train/validation loaders."""
-
-        _dataset = self.train_dataset if train else self.valid_dataset
-        
-        def collate_fn(data):
-            images, labels = zip(*data)
-            images = torch.cat(images)
-            labels = torch.cat(labels)
-            return images, labels
-        
-        loader = DataLoader(dataset=_dataset,
-                            batch_size=self.batch_size,
-                            num_workers=self.num_workers,
-                            collate_fn=collate_fn if self.pair_constraint else None,
-                            shuffle=True if train else False)
-
-        return loader
-
-    def train_dataloader(self):
-        log.info('Training data loaded.')
-        return self.__dataloader(train=True)
-
-    def val_dataloader(self):
-        log.info('Validation data loaded.')
-        return self.__dataloader(train=False)
-
     @staticmethod
     def add_model_specific_args(parent_parser):
-        parser = argparse.ArgumentParser(parents=[parent_parser])
+        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
         parser.add_argument('--backbone',
                             default='mixnet_s',
                             type=str,
                             metavar='BK',
                             help='Name (as in ``torchvision.models``) of the feature extractor')
-        parser.add_argument('--decoder',
-                            default='NR',
-                            type=str)
-        parser.add_argument('--data-path',
-                            default='/media/multi_quality_factor/JPEG_standard/',
-                            type=str,
-                            metavar='dp',
-                            help='data_path')
         parser.add_argument('--epochs',
                             default=100,
                             type=int,
                             metavar='N',
                             help='total number of epochs')
-        parser.add_argument('--batch-size',
-                            default=32,
-                            type=int,
-                            metavar='B',
-                            help='batch size',
-                            dest='batch_size')
         parser.add_argument('--gpus',
                             nargs='+',
                             type=int,
@@ -363,10 +232,6 @@ class LitModel(pl.LightningModule):
                             type=int,
                             default=0,
                             help='do not decay batch norm and bias and FC')
-        parser.add_argument('--pair-constraint',
-                            type=int,
-                            default=0,
-                            help='Use pair constraint?')
         parser.add_argument('--lr',
                             '--learning-rate',
                             default=1e-3,
@@ -379,12 +244,6 @@ class LitModel(pl.LightningModule):
                             type=float,
                             help='eps for adaptive optimizers',
                             dest='eps')
-        parser.add_argument('--num-workers',
-                            default=6,
-                            type=int,
-                            metavar='W',
-                            help='number of CPU workers',
-                            dest='num_workers')
         parser.add_argument('--lr-scheduler-name',
                             default='cos',
                             type=str,
@@ -399,14 +258,6 @@ class LitModel(pl.LightningModule):
                             default='',
                             type=str,
                             help='name of surgery function')
-        parser.add_argument('--qf',
-                            default='',
-                            type=str,
-                            help='quality factor')
-        parser.add_argument('--all-qfs',
-                            default=1,
-                            type=int,
-                            help='train on all QFs?')
         parser.add_argument('--weight-decay',
                             default=1e-2,
                             type=float,
