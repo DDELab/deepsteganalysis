@@ -20,31 +20,44 @@ from pytorch_lightning.utilities.distributed import rank_zero_only
 
 from LitModel import LitModel
 from LitDataloader import LitStegoDataModule
+from tools.log_utils import gen_run_name
 
 seed_everything(1994)
 
 def setup_callbacks_loggers(args):
     
-    log_path = Path('/home/ekaziak1/LogFiles/test/BOSS_alaska_stego/')
     name = args.backbone
     version = args.version
+    log_path = os.path.join(args.log_path, name, version)
     
     if not args.all_qfs:
-        log_path = log_path/('QF'+args.qf)
+        log_path = os.path.join(log_path, 'QF' + args.qf)
     else:
-        log_path = log_path/('all_qfs')
+        log_path = os.path.join(log_path, 'all_qfs')
+
+    if (args.run_name != ""):
+        hash_postfix = args.run_name
+    else:
+        hash_postfix = gen_run_name(length=8)
+
+    log_path = os.path.join(log_path, hash_postfix)
+    tb_dir = os.path.join(log_path, "tb")
+    os.makedirs(tb_dir, exist_ok=True)
     
-    wandb_logger = WandbLogger(project='imagenet-steganalysis-test',
+    wandb_logger = WandbLogger(project='_'.join(log_path.split('/')[-4:-1]),
+                               dir=log_path,         
+                               name=hash_postfix,
                                entity='dde',
-                               config=args, name=args.run_name,
+                               config=args,
                                mode='online' if args.wb==True else 'offline')
-    tb_logger = TensorBoardLogger(log_path, name=name, version=version)
+
+    tb_logger = TensorBoardLogger(tb_dir, name="", version="")
     lr_logger = LearningRateMonitor(logging_interval='epoch')
-    ckpt_callback = ModelCheckpoint(dirpath='logpath/version/checkpoints',
+    ckpt_callback = ModelCheckpoint(dirpath=os.path.join(log_path, 'checkpoints'),
                                     filename='{epoch:02d}_{val_wAUC:.4f}', 
                                     save_top_k=5, save_last=True, monitor='val_wAUC', mode='max')
    
-    return ckpt_callback, wandb_logger, lr_logger
+    return ckpt_callback, [wandb_logger, tb_logger], lr_logger
 
 
 def main(args):
@@ -58,9 +71,9 @@ def main(args):
 
     datamodule = LitStegoDataModule(**vars(args))
     
-    ckpt_callback, tb_logger, lr_logger = setup_callbacks_loggers(args)
+    ckpt_callback, loggers, lr_logger = setup_callbacks_loggers(args)
     
-    trainer = Trainer(logger=tb_logger,
+    trainer = Trainer(logger=loggers,
                       callbacks=[ckpt_callback, lr_logger],
                       gpus=args.gpus,
                       min_epochs=args.epochs,
@@ -78,7 +91,6 @@ def main(args):
     trainer.logger.log_hyperparams(model.hparams)
     
     trainer.fit(model, datamodule)
-
 
 def run_cli():
     root_dir = os.path.dirname(os.path.realpath(__file__))
@@ -104,13 +116,17 @@ def run_cli():
                          metavar='SFC',
                          help='path to checkpoint seed')
     parser.add_argument('--run-name',
-                        default=str(uuid.uuid4())[:8],
+                        default="",
                         type=str,
                         help='run name for weight&biases entry')
     parser.add_argument('--wb',
                         default=False,
                         type=bool,
                         help='turn on/off W&B logging')
+    parser.add_argument('--log-path',
+                        default=os.path.join(os.path.expanduser('~'), "log_deepsteganalysis"),
+                        type=str,
+                        help='log path')
     
     parser = ArgumentParser(parents=[parser])
 
