@@ -26,15 +26,16 @@ seed_everything(1994)
 
 def setup_callbacks_loggers(args):
     
-    name = args.backbone
-    version = args.version
-    log_path = os.path.join(args.log_path, name, version)
+    log_path = os.path.join(args.log_path, args.ex_name,
+                            args.backbone)
     
     if not args.all_qfs:
         log_path = os.path.join(log_path, 'QF' + args.qf)
     else:
         log_path = os.path.join(log_path, 'all_qfs')
 
+    log_path = os.path.join(log_path, args.version)
+    
     if (args.run_name != ""):
         hash_postfix = args.run_name
     else:
@@ -44,7 +45,7 @@ def setup_callbacks_loggers(args):
     tb_dir = os.path.join(log_path, "tb")
     os.makedirs(tb_dir, exist_ok=True)
     
-    wandb_logger = WandbLogger(project='_'.join(log_path.split('/')[-4:-1]),
+    wandb_logger = WandbLogger(project=args.ex_name,
                                dir=log_path,         
                                name=hash_postfix,
                                entity='dde',
@@ -119,12 +120,16 @@ def run_cli():
                         default="",
                         type=str,
                         help='run name for weight&biases entry')
+    parser.add_argument('--ex-name',
+                        default="my_experiment",
+                        type=str,
+                        help='experiment name')
     parser.add_argument('--wb',
                         default=False,
                         type=bool,
                         help='turn on/off W&B logging')
     parser.add_argument('--log-path',
-                        default=os.path.join(os.path.expanduser('~'), "log_deepsteganalysis"),
+                        default=os.path.join(os.path.expanduser('~'), "LogFiles"),
                         type=str,
                         help='log path')
     
