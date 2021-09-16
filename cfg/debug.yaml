@@ -1,0 +1,48 @@
+logging:
+  freq: 50
+  path: LogFiles
+  project: ""
+  eid: ""
+  wandb:
+    activate: False
+    team: "dde"
+
+training:
+  seed: 1994
+  gpus: [0]
+  epochs: 5
+  batch_size: 12
+
+ckpt:
+  resume_from: ""
+  seed_from: ""
+  load_fc: True
+  fc_name: "classifier"
+
+optimizer:
+  # do not decay batch norm and bias and FC
+  decay_not_bias_norm: 0
+  # initial learning rate
+  lr: 1e-3
+  # eps for adaptive optimizers
+  eps: 1e-8
+  # Name of LR scheduler
+  lr_scheduler_name: 'onecycle'
+  # Name of optimizer
+  name: 'adamw'
+  # Optimizer weight decay
+  weight_decay: 1e-2
+
+model:
+  backbone: efficientnet-b0
+  version: short-eps4-2
+  # name of surgery function
+  surgery: ""
+
+dataset:
+  size: 50
+  file_ext: '.jpg'
+  decoder: 'NR'
+  data_path: /media/multi_quality_factor/JPEG_standard/
+  pair_constraint: False
+  num_workers: 6
