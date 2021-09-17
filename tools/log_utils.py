@@ -9,7 +9,6 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.utilities.distributed import _get_rank
 
-
 def gen_run_name():
     """
     Adapted from https://github.com/wandb/lit_utils/blob/main/utils.py
