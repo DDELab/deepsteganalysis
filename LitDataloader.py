@@ -125,5 +125,5 @@ class LitStegoDataModule(pl.LightningDataModule):
                             batch_size=args.training.batch_size,
                             num_workers=args.dataset.num_workers,
                             collate_fn=collate_fn if args.dataset.pair_constraint else None,
-                            shuffle=True)
+                            shuffle=False)
         return loader

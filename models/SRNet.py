@@ -115,20 +115,20 @@ class SRNet_layer4(nn.Module):
     
     
 class SRNet(nn.Module):
-    def __init__(self, in_channels, nclasses, global_pooling='avg', activation=nn.ReLU(), norm_layer=nn.BatchNorm2d, norm_kwargs={}):
+    def __init__(self, in_chans, num_classes, global_pooling='avg', activation=nn.ReLU(), norm_layer=nn.BatchNorm2d, norm_kwargs={}, **kwargs):
         super(SRNet, self).__init__()
-        self.in_channels = in_channels
+        self.in_chans = in_chans
         self.activation = activation
         self.norm_layer = norm_layer
-        self.nclasses = nclasses
+        self.num_classes = num_classes
         self.global_pooling = SelectAdaptivePool2d(pool_type=global_pooling, flatten=True)
         
         self.layer_1_specs = [64, 16]
         self.layer_2_specs = [16, 16, 16, 16, 16]
         self.layer_3_specs = [16, 64, 128, 256]
         self.layer_4_specs = [512]
-        in_channels = self.in_channels
         
+        in_channels = self.in_chans
         block1 = []
         for out_channels in self.layer_1_specs:
             block1.append(SRNet_layer1(in_channels, out_channels, activation=self.activation, norm_layer=self.norm_layer, norm_kwargs=norm_kwargs))
@@ -154,119 +154,7 @@ class SRNet(nn.Module):
         self.block3 = nn.Sequential(*block3)
         self.block4 = nn.Sequential(*block4)
         
-        self.fc = nn.Linear(in_channels, self.nclasses, bias=True)
-        
-    def forward_features(self, x):
-        x = self.block1(x)
-        x = self.block2(x)
-        x = self.block3(x)
-        x = self.block4(x)
-        return x
-    
-    def forward(self, x):
-        x = self.forward_features(x)
-        x = self.global_pooling(x)
-        x = self.fc(x)
-        return x
-
-
-class SRNet3(nn.Module):
-    def __init__(self, in_channels, nclasses, global_pooling='avg', activation=nn.ReLU(), norm_layer=nn.BatchNorm2d, norm_kwargs={}):
-        super(SRNet3, self).__init__()
-        self.in_channels = in_channels
-        self.activation = activation
-        self.norm_layer = norm_layer
-        self.nclasses = nclasses
-        self.global_pooling = SelectAdaptivePool2d(pool_type=global_pooling, flatten=True)
-        
-        self.layer_1_specs = [64, 16]
-        self.layer_2_specs = [16, 16, 16]
-        self.layer_3_specs = [16, 64, 128, 256]
-        self.layer_4_specs = [512]
-        in_channels = self.in_channels
-        
-        block1 = []
-        for out_channels in self.layer_1_specs:
-            block1.append(SRNet_layer1(in_channels, out_channels, activation=self.activation, norm_layer=self.norm_layer, norm_kwargs=norm_kwargs))
-            in_channels = out_channels
-            
-        block2 = []
-        for out_channels in self.layer_2_specs:
-            block2.append(SRNet_layer2(in_channels, out_channels, activation=self.activation, norm_layer=self.norm_layer, norm_kwargs=norm_kwargs))
-            in_channels = out_channels
-            
-        block3 = []
-        for out_channels in self.layer_3_specs:
-            block3.append(SRNet_layer3(in_channels, out_channels, activation=self.activation, norm_layer=self.norm_layer, norm_kwargs=norm_kwargs))
-            in_channels = out_channels
-            
-        block4 = []
-        for out_channels in self.layer_4_specs:
-            block4.append(SRNet_layer4(in_channels, out_channels, activation=self.activation, norm_layer=self.norm_layer, norm_kwargs=norm_kwargs))
-            in_channels = out_channels
-        
-        self.block1 = nn.Sequential(*block1)
-        self.block2 = nn.Sequential(*block2)
-        self.block3 = nn.Sequential(*block3)
-        self.block4 = nn.Sequential(*block4)
-        
-        self.fc = nn.Linear(in_channels, self.nclasses, bias=True)
-        
-    def forward_features(self, x):
-        x = self.block1(x)
-        x = self.block2(x)
-        x = self.block3(x)
-        x = self.block4(x)
-        return x
-    
-    def forward(self, x):
-        x = self.forward_features(x)
-        x = self.global_pooling(x)
-        x = self.fc(x)
-        return x
-
-
-class SRNet2(nn.Module):
-    def __init__(self, in_channels, nclasses, global_pooling='avg', activation=nn.ReLU(), norm_layer=nn.BatchNorm2d, norm_kwargs={}):
-        super(SRNet2, self).__init__()
-        self.in_channels = in_channels
-        self.activation = activation
-        self.norm_layer = norm_layer
-        self.nclasses = nclasses
-        self.global_pooling = SelectAdaptivePool2d(pool_type=global_pooling, flatten=True)
-        
-        self.layer_1_specs = [64, 16]
-        self.layer_2_specs = [16, 16]
-        self.layer_3_specs = [16, 64, 128, 256]
-        self.layer_4_specs = [512]
-        in_channels = self.in_channels
-        
-        block1 = []
-        for out_channels in self.layer_1_specs:
-            block1.append(SRNet_layer1(in_channels, out_channels, activation=self.activation, norm_layer=self.norm_layer, norm_kwargs=norm_kwargs))
-            in_channels = out_channels
-            
-        block2 = []
-        for out_channels in self.layer_2_specs:
-            block2.append(SRNet_layer2(in_channels, out_channels, activation=self.activation, norm_layer=self.norm_layer, norm_kwargs=norm_kwargs))
-            in_channels = out_channels
-            
-        block3 = []
-        for out_channels in self.layer_3_specs:
-            block3.append(SRNet_layer3(in_channels, out_channels, activation=self.activation, norm_layer=self.norm_layer, norm_kwargs=norm_kwargs))
-            in_channels = out_channels
-            
-        block4 = []
-        for out_channels in self.layer_4_specs:
-            block4.append(SRNet_layer4(in_channels, out_channels, activation=self.activation, norm_layer=self.norm_layer, norm_kwargs=norm_kwargs))
-            in_channels = out_channels
-        
-        self.block1 = nn.Sequential(*block1)
-        self.block2 = nn.Sequential(*block2)
-        self.block3 = nn.Sequential(*block3)
-        self.block4 = nn.Sequential(*block4)
-        
-        self.fc = nn.Linear(in_channels, self.nclasses, bias=True)
+        self.fc = nn.Linear(in_channels, self.num_classes, bias=True)
         
     def forward_features(self, x):
         x = self.block1(x)

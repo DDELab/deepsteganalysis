@@ -1,21 +1,35 @@
 import uuid
 import os 
+import random
+from wonderwords import RandomWord
 
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import LearningRateMonitor
+from pytorch_lightning.utilities.distributed import _get_rank
 
-def gen_run_name(length=8):
-    return str(uuid.uuid4())[:8]
+
+def gen_run_name():
+    """
+    Adapted from https://github.com/wandb/lit_utils/blob/main/utils.py
+    """
+    r = RandomWord()
+    name = "-".join(
+            [r.word(word_min_length=3, word_max_length=8, include_parts_of_speech=["adjective"]) ,
+            r.word(word_min_length=3, word_max_length=8, include_parts_of_speech=["noun"]),
+            str(random.randint(0,9))
+            ])
+
+    return name
 
 def setup_callbacks_loggers(args):
     
-    if args.logging.project == "":
+    if args.logging.project is None:
         args.logging.project = os.getcwd().split('/')[-1]
 
-    if args.logging.eid == "":
-        args.logging.eid = gen_run_name(length=8)
+    if args.logging.eid is None:
+        args.logging.eid = gen_run_name()
 
     args.logging.path = os.path.join(os.path.expanduser("~"), args.logging.path)
     
@@ -26,7 +40,8 @@ def setup_callbacks_loggers(args):
 
     log_path = os.path.join(log_path, args.logging.eid)
     tb_dir = os.path.join(log_path, "tensorboard")
-    os.makedirs(tb_dir, exist_ok=True)
+    if _get_rank() == 0:
+        os.makedirs(tb_dir, exist_ok=True)
     
     wandb_logger = WandbLogger(project=args.logging.project,
                                dir=log_path,         

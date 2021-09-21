@@ -55,7 +55,7 @@ def main(args):
 
 def run_cli():   
     # os.path.join(os.path.expanduser('~') 
-    args = get_args_cli_yaml("conf/default_name.yaml")
+    args = get_args_cli_yaml(cfg_path="cfg/debug.yaml")
     main(args)
 
 if __name__ == '__main__':

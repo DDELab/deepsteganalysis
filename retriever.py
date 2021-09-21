@@ -76,12 +76,12 @@ class TrainRetriever(Dataset):
             sample = self.transforms(**sample)
             image = sample['image']
             
-        target = onehot(self.num_classes, label)
+        #label = onehot(self.num_classes, label)
         
         if self.return_name:
-            return image, target, image_name
+            return image, label, image_name
         else:
-            return image, target
+            return image, label
 
     def __len__(self) -> int:
         return self.image_names.shape[0]
@@ -113,7 +113,7 @@ class TrainRetrieverPaired(Dataset):
         cover = cover[:,:,:1].astype(np.float32)
         #cover = ycbcr2rgb(cover).astype(np.float32)
         cover /= 255.0
-        target_cover = onehot(self.num_classes, label[0])
+        target_cover = label[0]
         
         i = np.random.randint(low=1, high=self.num_classes)
         tmp = jio.read(f'{self.data_path}/{kind[i]}/{image_name[i]}')
@@ -121,7 +121,7 @@ class TrainRetrieverPaired(Dataset):
         stego = stego[:,:,:1].astype(np.float32)
         #stego = ycbcr2rgb(stego).astype(np.float32)
         stego /= 255.0
-        target_stego = onehot(self.num_classes, label[i])
+        target_stego = label[i]
             
         if self.transforms:
             sample = {'image': cover, 'image2': stego}
@@ -129,7 +129,7 @@ class TrainRetrieverPaired(Dataset):
             cover = sample['image']
             stego = sample['image2']
             
-        return torch.stack([cover,stego]), torch.stack([target_cover, target_stego])
+        return torch.stack([cover,stego]), [target_cover, target_stego]
 
     def __len__(self) -> int:
         return self.image_names.shape[0]

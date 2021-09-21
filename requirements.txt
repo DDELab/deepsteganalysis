@@ -4,8 +4,11 @@ pandas
 cython
 timm==0.1.26
 tensorboard==2.2.0
-pytorch-lightning==0.9.0
+pytorch-lightning==1.4.6
 opencv-python
 efficientnet_pytorch==0.6.3
 albumentations==0.4.5
 scikit-learn==0.20.2
+torchmetrics==0.5.1
+omegaconf==2.1.1
+wonderwords==2.2.0

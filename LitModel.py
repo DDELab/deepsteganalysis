@@ -1,64 +1,48 @@
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-import pandas as pd
-import numpy as np 
-import pickle
-import argparse
-from collections import OrderedDict
-from pathlib import Path
-from tempfile import TemporaryDirectory
-from typing import Optional, Generator, Union, IO, Dict, Callable
 import torch
 import torch.nn.functional as F
-from torch import optim
-from torch.nn import Module
-from torch.utils.data import DataLoader
 import pytorch_lightning as pl
-from pytorch_lightning import _logger as log
-import random
-from optimizers import *
-import models
-from retriever import *
-from custom_metrics import RocAucMeter, PEMeter, MD5Meter
-from pytorch_lightning.utilities.cloud_io import load as pl_load
-from pytorch_lightning.utilities.distributed import sync_ddp_if_available
+from optimizers import get_optimizer, get_lr_scheduler, get_lr_scheduler_params
+import models.surgeries
+from models.models import get_net
+from metrics import Accuracy, wAUC, PE, MD5
     
 class LitModel(pl.LightningModule):
-    """Transfer Learning
+    """
+    Train a steganalysis model
     """
     def __init__(self, args) -> None:
         
+        self.args = args
         super().__init__()
-        self.args = args  
-        self.save_hyperparameters(args)
+        self.save_hyperparameters(self.args)
         
-        self.train_custom_metrics = {'train_wAUC': RocAucMeter(), 'train_mPE': PEMeter()}
-        self.validation_custom_metrics = {'val_wAUC': RocAucMeter(), 'val_mPE': PEMeter(), 'val_MD5': MD5Meter()}
+        self.train_metrics = {'train_wAUC': wAUC()}
+        self.validation_metrics = {'val_acc': Accuracy(), 'val_wAUC': wAUC(), 'val_mPE': PE(), 'val_MD5': MD5()}
         
+        self.__set_attributes(self.train_metrics)
+        self.__set_attributes(self.validation_metrics)
         self.__build_model()
+    
+    def __set_attributes(self, attributes_dict):
+        for k,v in attributes_dict.items():
+            setattr(self, k, v) 
 
     def __build_model(self):
         """Define model layers & loss."""
-        args = self.args
-
         # 1. Load pre-trained network:
-        self.net = models.get_net(args.model.backbone)
-
-        if args.ckpt.seed_from is not None and args.ckpt.seed_from != "":
-            checkpoint = torch.load(args.ckpt.seed_from)
-            model_dict = self.net.state_dict()
-            state_dict = {k.split('net.')[1]: v for k, v in checkpoint['state_dict'].items() if 'classifier.' not in k}
-            model_dict.update(state_dict)
-            self.net.load_state_dict(model_dict)
-            print('loaded seed checkpoint')
-            del checkpoint
-            del model_dict
-            del state_dict
+        self.net = get_net(self.args.model.backbone, 
+                           num_classes=3, #TODO make this an attribute in litdata
+                           in_chans=1, #TODO make this an attribute in litdata
+                           imagenet=self.args.ckpt.imagenet, 
+                           ckpt_path=self.args.ckpt.seed_from)
         
-        if args.model.surgery != '':
-            self.net = getattr(models, args.model.surgery)(self.net)
+        # 2. Do surgery if needed
+        if self.args.model.surgery is not None:
+            self.net = getattr(models.surgeries, self.args.model.surgery)(self.net)
 
-        # 2. Loss:
+        # 3. Loss:
         self.loss_func = F.cross_entropy
 
     def forward(self, x):
@@ -69,66 +53,43 @@ class LitModel(pl.LightningModule):
         return x
 
     def loss(self, logits, labels):
-        return self.loss_func(logits, torch.argmax(labels, dim=1))
+        return self.loss_func(logits, labels)
 
     def training_step(self, batch, batch_idx):
-
         # 1. Forward pass:
         x, y = batch
         y_logits = self.forward(x)
         
-        pred_bin = torch.argmax(y_logits, dim=1)
-        pred_bin = pred_bin > 0
-        
-        y_bin = torch.argmax(y, dim=1)
-        y_bin = y_bin > 0
-        
-        # 2. Compute loss & accuracy:
+        # 2. Compute loss:
         train_loss = self.loss(y_logits, y)
-        
-        # metrics = {'loss': train_loss}
-        
-        metrics = {}
-        for metric_name in self.train_custom_metrics.keys():
-            metrics[metric_name] = self.train_custom_metrics[metric_name].update(y_logits, y)
             
-        acc = torch.eq(y_bin.view(-1), pred_bin.view(-1)).float().mean()
-        metrics['acc'] = acc
-        # 3. Outputs: 
-        #print(acc)       
-        self.log("train_loss", train_loss, on_step=True, on_epoch=True, logger=True, sync_dist=True)
-        self.log("acc", acc, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        # 3. Compute metrics and log:
+        self.log("train_loss", train_loss, on_step=True, on_epoch=False,  prog_bar=True, logger=False, sync_dist=False)
+        for metric_name in self.train_metrics.keys():
+            self.log(metric_name, getattr(self, metric_name)(y_logits, y), on_step=True, on_epoch=False, prog_bar=True, logger=False, sync_dist=False)
 
-        output = OrderedDict({'loss': train_loss,
-                              'acc': acc,
-                              'log': metrics,
-                              'progress_bar': metrics})
-        return output
+        return train_loss
+
+    def training_epoch_end(self, outputs):
+        for metric_name in self.train_metrics.keys():
+            self.log(metric_name, getattr(self, metric_name).compute(), on_step=False, on_epoch=True, prog_bar=False, logger=True, sync_dist=True)
 
     def validation_step(self, batch, batch_idx):
-        
         # 1. Forward pass:
         x, y = batch
         y_logits = self.forward(x)
-        pred_bin = torch.argmax(y_logits, dim=1)
-        pred_bin = pred_bin > 0
-        
-        y_bin = torch.argmax(y, dim=1)
-        y_bin = y_bin > 0
-        # 2. Compute loss & accuracy:
+
+        # 2. Compute loss:
         val_loss = self.loss(y_logits, y)
         
-        metrics = {'val_loss': val_loss}
-        self.log('val_loss', val_loss, on_step=True, on_epoch=True, logger=True, sync_dist=True)
-        for metric_name in self.validation_custom_metrics.keys():
-            metrics[metric_name] = self.validation_custom_metrics[metric_name].update(y_logits, y)
-            self.log(metric_name, metrics[metric_name], on_step=True, on_epoch=True, logger=True, sync_dist=True)
-            
-        acc = torch.eq(y_bin.view(-1), pred_bin.view(-1)).float().mean()
-        metrics['val_acc'] = acc
-        self.log('val_acc', acc, on_step=True, on_epoch=True, logger=True, sync_dist=True)
-        
-        return metrics
+        # 3. Compute metrics and log:
+        self.log('val_loss', val_loss, on_step=True, on_epoch=False,  prog_bar=False, logger=False, sync_dist=False)
+        for metric_name in self.validation_metrics.keys():
+            self.log(metric_name, getattr(self, metric_name)(y_logits, y), on_step=True, on_epoch=False, prog_bar=False, logger=False, sync_dist=False)
+
+    def validation_epoch_end(self, outputs):
+        for metric_name in self.validation_metrics.keys():
+            self.log(metric_name, getattr(self, metric_name).compute(), on_step=False, on_epoch=True, prog_bar=False, logger=True, sync_dist=True)
 
     def test_step(self, batch, batch_idx):
         x, y, name = batch
@@ -142,49 +103,48 @@ class LitModel(pl.LightningModule):
         return result
         
     def configure_optimizers(self):
-        args = self.args
 
-        optimizer = get_optimizer(args.optimizer.name)
+        optimizer = get_optimizer(self.args.optimizer.name)
         
-        optimizer_kwargs = {'momentum': 0.9} if args.optimizer.name == 'sgd' else {'eps': args.optimizer.eps}
+        optimizer_kwargs = {'momentum': 0.9} if self.args.optimizer.name == 'sgd' else {'eps': self.args.optimizer.eps}
         
         param_optimizer = list(self.net.named_parameters())
         
-        if args.optimizer.decay_not_bias_norm:
+        if self.args.optimizer.decay_not_bias_norm:
             no_decay = ['bias', 'norm.bias', 'norm.weight', 'fc.weight', 'fc.bias']
         else:
             no_decay = []
         optimizer_grouped_parameters = [
-            {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': args.optimizer.weight_decay},
+            {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': self.args.optimizer.weight_decay},
             {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
             ] 
         optimizer = optimizer(optimizer_grouped_parameters, 
-                              lr=args.optimizer.lr, 
+                              lr=self.args.optimizer.lr, 
                               **optimizer_kwargs)
         
         train_len = len(self.trainer.datamodule.train_dataset)
         #print("######### Training len", train_len)
-        batch_size = args.training.batch_size
+        batch_size = self.args.training.batch_size
         #print("########## Batch size", batch_size)
 
-        if args.optimizer.lr_scheduler_name == 'cos':
-            scheduler_kwargs = {'T_max': args.training.epochs*train_len//len(args.training.gpus)//batch_size,
-                                'eta_min':args.optimizer.lr/50}
+        if self.args.optimizer.lr_scheduler_name == 'cos':
+            scheduler_kwargs = {'T_max': self.args.training.epochs*train_len//len(self.args.training.gpus)//batch_size,
+                                'eta_min':self.args.optimizer.lr/50}
 
-        elif args.optimizer.lr_scheduler_name == 'onecycle':
-            scheduler_kwargs = {'max_lr': args.optimizer.lr, 'epochs': args.training.epochs,
-                                'steps_per_epoch':train_len//len(args.training.gpus)//batch_size,
-                                'pct_start':4.0/args.training.epochs,'div_factor':25,'final_div_factor':2}
+        elif self.args.optimizer.lr_scheduler_name == 'onecycle':
+            scheduler_kwargs = {'max_lr': self.args.optimizer.lr, 'epochs': self.args.training.epochs,
+                                'steps_per_epoch':train_len//len(self.args.training.gpus)//batch_size,
+                                'pct_start':4.0/self.args.training.epochs,'div_factor':25,'final_div_factor':2}
                                 #'div_factor':25,'final_div_factor':2}
 
-        elif args.optimizer.lr_scheduler_name == 'multistep':
+        elif self.args.optimizer.lr_scheduler_name == 'multistep':
              scheduler_kwargs = {'milestones':[350]}
 
-        elif args.optimizer.lr_scheduler_name == 'const':
+        elif self.args.optimizer.lr_scheduler_name == 'const':
             scheduler_kwargs = {'lr_lambda': lambda epoch: 1}
             
-        scheduler = get_lr_scheduler(args.optimizer.lr_scheduler_name)
-        scheduler_params, interval = get_lr_scheduler_params(args.optimizer.lr_scheduler_name, **scheduler_kwargs)
+        scheduler = get_lr_scheduler(self.args.optimizer.lr_scheduler_name)
+        scheduler_params, interval = get_lr_scheduler_params(self.args.optimizer.lr_scheduler_name, **scheduler_kwargs)
         scheduler = scheduler(optimizer, **scheduler_params)
 
         return [optimizer], [{'scheduler':scheduler, 'interval': interval, 'name': 'lr'}]

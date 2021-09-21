@@ -1,23 +1,23 @@
 logging:
   freq: 50
   path: LogFiles
-  project: ""
-  eid: ""
+  project: null
+  eid: null
   wandb:
     activate: False
     team: "dde"
 
 training:
   seed: 1994
-  gpus: [0]
+  gpus: [0, 1]
   epochs: 5
-  batch_size: 12
+  batch_size: 32
 
 ckpt:
-  resume_from: ""
-  seed_from: ""
+  resume_from: null
+  seed_from: null
   load_fc: True
-  fc_name: "classifier"
+  imagenet: True
 
 optimizer:
   # do not decay batch norm and bias and FC
@@ -34,10 +34,10 @@ optimizer:
   weight_decay: 1e-2
 
 model:
-  backbone: efficientnet-b0
-  version: short-eps4-2
+  backbone: efficientnet_b2
+  version: test
   # name of surgery function
-  surgery: ""
+  surgery: null
 
 dataset:
   size: 50
