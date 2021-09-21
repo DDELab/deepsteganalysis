@@ -10,7 +10,7 @@ logging:
 training:
   seed: 1994
   gpus: [0, 1]
-  epochs: 5
+  epochs: 40
   batch_size: 32
 
 ckpt:

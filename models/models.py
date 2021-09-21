@@ -17,6 +17,12 @@ zoo_params = {
         'init_op': partial(timm.create_model, 'efficientnet_b2') 
     },
 
+    'efficientnet_b4': {
+        'fc_name': 'classifier',
+        'conv_stem_name': 'conv_stem',
+        'init_op': partial(timm.create_model, 'efficientnet_b4') 
+    },
+
     'srnet': {
         'fc_name': 'fc',
         'conv_stem_name': 'block1.0.conv',

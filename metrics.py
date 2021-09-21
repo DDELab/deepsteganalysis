@@ -20,7 +20,7 @@ def wauc(y_true, y_pred):
     """
     tpr_thresholds = [0.0, 0.4, 1.0]
     weights = [2, 1]
-    fpr, tpr, thresholds = roc_curve(y_true, y_pred, pos_label=1)
+    fpr, tpr, thresholds = roc_curve(y_true, y_pred, pos_label=1, drop_intermediate=False)
     areas = np.array(tpr_thresholds[1:]) - np.array(tpr_thresholds[:-1])
     normalization = np.dot(areas, weights)
 
@@ -43,12 +43,12 @@ def wauc(y_true, y_pred):
         
 @_numpy_metric_conversion
 def md5(y_true, y_pred):
-    fpr, tpr, thresholds = roc_curve(y_true, y_pred, pos_label=1)
+    fpr, tpr, thresholds = roc_curve(y_true, y_pred, pos_label=1, drop_intermediate=False)
     return 1-np.interp(0.05, fpr, tpr) 
 
 @_numpy_metric_conversion   
 def pe(y_true, y_pred):
-    fpr, tpr, thresholds = roc_curve(y_true, y_pred, pos_label=1)
+    fpr, tpr, thresholds = roc_curve(y_true, y_pred, pos_label=1, drop_intermediate=False)
     P = 0.5*(fpr+(1-tpr))
     return min(P[P>0])
 
