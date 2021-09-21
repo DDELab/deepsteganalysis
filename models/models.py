@@ -25,7 +25,7 @@ zoo_params = {
 
 }
 
-def get_net(model_name, num_classes=2, in_chans=3, imagenet=True, ckpt_path="", strict_loading=False):
+def get_net(model_name, num_classes=2, in_chans=3, imagenet=True, ckpt_path=None, strict_loading=False):
     net = zoo_params[model_name]['init_op'](num_classes=num_classes, in_chans=in_chans, pretrained=imagenet)
     net.model_name = model_name
 

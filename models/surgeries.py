@@ -18,28 +18,23 @@ def poststem(net):
     num_channels = getattr(net, zoo_params[net.model_name]['conv_stem_name']).out_channels 
     net = nostride(net)
     
-    net._midstems = nn.ModuleList([timm.models.efficientnet_blocks.InvertedResidual(in_chs=num_channels, out_chs=num_channels, noskip=True),
+    net.post_stem = nn.ModuleList([timm.models.efficientnet_blocks.InvertedResidual(in_chs=num_channels, out_chs=num_channels, noskip=True),
                     timm.models.efficientnet_blocks.InvertedResidual(in_chs=num_channels, out_chs=num_channels),
                     timm.models.efficientnet_blocks.InvertedResidual(in_chs=num_channels, out_chs=num_channels),
                     timm.models.efficientnet_blocks.InvertedResidual(in_chs=num_channels, out_chs=num_channels, stride=2)])
     
-    def new_extract_features(self, inputs):
+    def new_forward_features(self, x):
         # Stem
-        x = self._swish(self._bn0(self._conv_stem(inputs)))
-        
-        for idx, block in enumerate(self._midstems):
+        x = self.conv_stem(x)
+        x = self.bn1(x)
+        x = self.act1(x)
+        for idx, block in enumerate(self.post_stem):
             x = block(x)
-    
-        # Blocks
-        for idx, block in enumerate(self._blocks):
-            drop_connect_rate = self._global_params.drop_connect_rate
-            if drop_connect_rate:
-                drop_connect_rate *= float(idx) / len(self._blocks) # scale drop connect_rate
-            x = block(x, drop_connect_rate=drop_connect_rate)
-    
-        # Head
-        x = self._swish(self._bn1(self._conv_head(x)))
+        x = self.blocks(x)
+        x = self.conv_head(x)
+        x = self.bn2(x)
+        x = self.act2(x)
         return x
     
-    net.extract_features = types.MethodType(new_extract_features, net)
+    net.forward_features = types.MethodType(new_forward_features, net)
     return net
