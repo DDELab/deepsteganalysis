@@ -1,6 +1,7 @@
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 from functools import partial
+from operator import attrgetter
 from torch import nn
 import timm
 import types
@@ -9,8 +10,9 @@ from models.models import zoo_params
 
     
 def nostride(net):
-    assert 'efficientnet' in net.model_name, 'No stride only supported for EfficientNet'
-    getattr(net, zoo_params[net.model_name]['conv_stem_name']).stride = (1,1)
+    layer_name = zoo_params[net.model_name]['conv_stem_name']
+    retriever = attrgetter(layer_name)
+    retriever(net).stride = (1,1)
     return net
         
 def poststem(net): 
