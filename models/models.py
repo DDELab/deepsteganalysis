@@ -11,10 +11,10 @@ from models.SRNet import SRNet
 
 zoo_params = {
 
-    'eca_nfnet_l1': {
+    'eca_nfnet_l0': {
         'fc_name': 'fc',
         'conv_stem_name': 'stem.conv1',
-        'init_op': partial(timm.create_model, 'eca_nfnet_l1') 
+        'init_op': partial(timm.create_model, 'eca_nfnet_l0') 
     },
     
     'efficientnet_b2': {
