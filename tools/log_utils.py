@@ -47,7 +47,6 @@ def setup_callbacks_loggers(args):
                                dir=log_path,         
                                name=args.logging.eid,
                                entity=args.logging.wandb.team,
-                               config=args,
                                mode='online' if args.logging.wandb.activate==True else 'offline')
 
     tb_logger = TensorBoardLogger(tb_dir, name="", version="")

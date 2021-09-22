@@ -4,7 +4,7 @@ logging:
   project: null
   eid: null
   wandb:
-    activate: False
+    activate: True
     team: "dde"
 
 training:
