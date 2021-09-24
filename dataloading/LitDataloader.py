@@ -9,8 +9,7 @@ import argparse
 import glob
 
 import pytorch_lightning as pl
-from retriever import TrainRetriever, TrainRetrieverPaired
-from retriever import get_train_transforms, get_valid_transforms
+from dataloading.retriever import TrainRetriever, TrainRetrieverPaired, get_train_transforms, get_valid_transforms
 from torch.utils.data import DataLoader
 import torch
 
@@ -64,39 +63,29 @@ class LitStegoDataModule(pl.LightningDataModule):
                         'fold': 0,
                     })
 
-        '''
-        if args.dataset.pair_constraint:
-            retriever = TrainRetrieverPaired
-            for cl in classes:
-                for path in IL_train:
-                    dataset.append({
-                        'kind': tuple([c + '/TRN' for c in cl]),
-                        'image_name': (path, path, path),
-                        'label': (0,1,2),
-                        'fold':1,
-                    })
-            for cl in classes:
-                for path in IL_val:
-                    dataset.append({
-                        'kind': tuple([c + '/VAL' for c in cl]),
-                        'image_name': (path, path, path),
-                        'label': (0,1,2),
-                        'fold':0,
-                    })
-        else:
-        '''
-
-        retriever = TrainRetriever
-        random.shuffle(dataset)
         dataset = pd.DataFrame(dataset)
-
+        
+        # register num_classes for later use
+        self.num_classes = len(set(dataset.label))
+        if self.args.dataset.pair_constraint:
+            # group by name 
+            dataset = dataset.groupby('image_name').agg(lambda x: x.tolist()).reset_index()
+            # make sure fold is not a list
+            dataset.fold = dataset.fold.apply(lambda x: x[0])
+            retriever = TrainRetrieverPaired
+        else:
+            retriever = TrainRetriever
+        
+        # Shuffle
+        dataset = dataset.sample(frac=1).reset_index(drop=True)
+  
         self.train_dataset = retriever(
             data_path=self.args.dataset.data_path,
             kinds=dataset[dataset['fold'] != 0].kind.values,
             image_names=dataset[dataset['fold'] != 0].image_name.values,
             labels=dataset[dataset['fold'] != 0].label.values,
             transforms=get_train_transforms(),
-            num_classes=len(self.args.dataset.desc.keys()),
+            num_classes=self.num_classes,
             decoder=self.args.dataset.decoder
         )
         
@@ -106,7 +95,7 @@ class LitStegoDataModule(pl.LightningDataModule):
             image_names=dataset[dataset['fold'] == 0].image_name.values,
             labels=dataset[dataset['fold'] == 0].label.values,
             transforms=get_valid_transforms(),
-            num_classes=len(self.args.dataset.desc.keys()),
+            num_classes=self.num_classes,
             decoder=self.args.dataset.decoder
         )
 

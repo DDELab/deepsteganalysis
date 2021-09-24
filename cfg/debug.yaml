@@ -61,6 +61,7 @@ dataset:
   test_id: "TST"
   val_id: "VAL"
   # Do not use wilcard now
+  # If pair constraint - make sure class1 is the cover class
   desc:
     class1:
       path: "QF75/COVER"

@@ -33,8 +33,8 @@ class LitModel(pl.LightningModule):
         """Define model layers & loss."""
         # 1. Load pre-trained network:
         self.net = get_net(self.args.model.backbone, 
-                           num_classes=3, #TODO make this an attribute in litdata
-                           in_chans=1, #TODO make this an attribute in litdata
+                           num_classes=3, #TODO automate this
+                           in_chans=1, #TODO automate this
                            imagenet=self.args.ckpt.imagenet, 
                            ckpt_path=self.args.ckpt.seed_from)
         

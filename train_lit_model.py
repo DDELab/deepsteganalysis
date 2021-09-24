@@ -7,13 +7,12 @@ import os
 from pathlib import Path
 from argparse import ArgumentParser
 
-from torch.utils.data import dataloader
 import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.utilities.distributed import rank_zero_only
 
 from LitModel import LitModel
-from LitDataloader import LitStegoDataModule
+from dataloading.LitDataloader import LitStegoDataModule
 from tools.log_utils import gen_run_name, setup_callbacks_loggers
 from tools.options_utils import get_args_cli_yaml
 

@@ -107,8 +107,7 @@ class TrainRetrieverPaired(Dataset):
     def __getitem__(self, index: int):
         
         kind, image_name, label = self.kinds[index], self.image_names[index], self.labels[index]
-        
-        tmp = jio.read(f'{self.data_path}/{kind[0]}/{image_name[0]}')
+        tmp = jio.read(f'{self.data_path}/{kind[0]}/{image_name}')
         cover = decompress_structure(tmp)
         cover = cover[:,:,:1].astype(np.float32)
         #cover = ycbcr2rgb(cover).astype(np.float32)
@@ -116,7 +115,7 @@ class TrainRetrieverPaired(Dataset):
         target_cover = label[0]
         
         i = np.random.randint(low=1, high=self.num_classes)
-        tmp = jio.read(f'{self.data_path}/{kind[i]}/{image_name[i]}')
+        tmp = jio.read(f'{self.data_path}/{kind[i]}/{image_name}')
         stego = decompress_structure(tmp)
         stego = stego[:,:,:1].astype(np.float32)
         #stego = ycbcr2rgb(stego).astype(np.float32)
@@ -129,7 +128,7 @@ class TrainRetrieverPaired(Dataset):
             cover = sample['image']
             stego = sample['image2']
             
-        return torch.stack([cover,stego]), [target_cover, target_stego]
+        return torch.stack([cover,stego]), torch.as_tensor([target_cover, target_stego])
 
     def __len__(self) -> int:
         return self.image_names.shape[0]
