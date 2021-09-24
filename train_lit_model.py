@@ -21,14 +21,8 @@ def main(args):
 
     seed_everything(args.training.seed)
 
-    if args.ckpt.seed_from:
-        print('model seeded')
-        model = LitModel.load_from_checkpoint(args.ckpt.seed_from, False, args)
-    else:
-        model = LitModel(args)
-
+    model = LitModel(args)
     datamodule = LitStegoDataModule(args)
-    
     ckpt_callback, loggers, lr_logger = setup_callbacks_loggers(args)
     
     trainer = Trainer(logger=loggers,
@@ -38,7 +32,7 @@ def main(args):
                       max_epochs=args.training.epochs,
                       precision=16,
                       amp_backend='native',
-                      amp_level='O1',
+                      amp_level=args.training.amp_level,
                       log_every_n_steps=100,
                       flush_logs_every_n_steps=100,
                       distributed_backend='ddp' if len(args.training.gpus) > 1 else None,

@@ -12,6 +12,7 @@ training:
   gpus: [0, 1]
   epochs: 40
   batch_size: 32
+  amp_level: "O1"
 
 ckpt:
   resume_from: null
@@ -25,7 +26,7 @@ optimizer:
   # initial learning rate
   lr: 1e-3
   # eps for adaptive optimizers
-  eps: 1e-8
+  eps: 1e-4
   # Name of LR scheduler
   lr_scheduler_name: 'onecycle'
   # Name of optimizer
