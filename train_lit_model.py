@@ -2,16 +2,14 @@
 Runs a model on a single node across multiple gpus.
 """
 import warnings
-
-from torch.utils.data import dataloader
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import os
 from pathlib import Path
 from argparse import ArgumentParser
+
+from torch.utils.data import dataloader
 import torch
-
 from pytorch_lightning import Trainer, seed_everything
-
 from pytorch_lightning.utilities.distributed import rank_zero_only
 
 from LitModel import LitModel
@@ -55,11 +53,7 @@ def main(args):
 
 def run_cli():   
     # os.path.join(os.path.expanduser('~') 
-<<<<<<< HEAD
     args = get_args_cli_yaml(cfg_path="cfg/debug.yaml")
-=======
-    args = get_args_cli_yaml("cfg/debug.yaml")
->>>>>>> Add customizable classes
     main(args)
 
 if __name__ == '__main__':

@@ -2,6 +2,10 @@ import uuid
 import os 
 import random
 from wonderwords import RandomWord
+import hashlib
+from omegaconf import OmegaConf
+import omegaconf
+import sys
 
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -22,6 +26,22 @@ def gen_run_name():
 
     return name
 
+def get_data_hash(args, hash_func="md5"):
+    string_tobehashed = args.dataset.data_path
+    for class_key in args.dataset.desc.keys():
+        string_tobehashed = string_tobehashed + args.dataset.desc[class_key].path +\
+                            str(args.dataset.desc[class_key].label)
+
+    if hash_func == "md5":
+        result  = hashlib.md5(string_tobehashed.encode())
+        hash = "ds_"+result.hexdigest()[:8]
+
+    return hash
+
+def dump_data_desc(args, dirpath):
+    dataset_yaml = args.dataset
+    OmegaConf.save(config=dataset_yaml, f=os.path.join(dirpath, "dataset_info.yaml"))
+
 def setup_callbacks_loggers(args):
     
     if args.logging.project is None:
@@ -31,16 +51,16 @@ def setup_callbacks_loggers(args):
         args.logging.eid = gen_run_name()
 
     args.logging.path = os.path.join(os.path.expanduser("~"), args.logging.path)
-    
-    log_path = os.path.join(args.logging.path, args.logging.project,
-                            args.model.backbone)
-    
-    log_path = os.path.join(log_path, 'all_qfs')
 
+    data_hash = get_data_hash(args)
+    log_path = os.path.join(args.logging.path, args.logging.project,
+                            data_hash, args.model.backbone)
+    
     log_path = os.path.join(log_path, args.logging.eid)
     tb_dir = os.path.join(log_path, "tensorboard")
     if _get_rank() == 0:
         os.makedirs(tb_dir, exist_ok=True)
+        dump_data_desc(args, os.path.join(args.logging.path, args.logging.project, data_hash))
     
     wandb_logger = WandbLogger(project=args.logging.project,
                                dir=log_path,         
