@@ -55,7 +55,11 @@ def main(args):
 
 def run_cli():   
     # os.path.join(os.path.expanduser('~') 
+<<<<<<< HEAD
     args = get_args_cli_yaml(cfg_path="cfg/debug.yaml")
+=======
+    args = get_args_cli_yaml("cfg/debug.yaml")
+>>>>>>> Add customizable classes
     main(args)
 
 if __name__ == '__main__':

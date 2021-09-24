@@ -39,10 +39,35 @@ model:
   # name of surgery function
   surgery: null
 
+# Dataset should comply with a following directory hierarchy 
+# $data_path/
+#     $desc.class1/
+#         $train_id/
+#         $val_id/
+#         $test_id/
+#     ...
+#     $desc.classN/
+#         $train_id/
+#         $val_id/
+#         $test_id/
 dataset:
   size: 50
   file_ext: '.jpg'
   decoder: 'NR'
-  data_path: /media/multi_quality_factor/JPEG_standard/
+  data_path: '/media/multi_quality_factor/JPEG_standard/'
   pair_constraint: False
   num_workers: 6
+  train_id: "TRN"
+  test_id: "TST"
+  val_id: "VAL"
+  # Do not use wilcard now
+  desc:
+    class1:
+      path: "QF75/COVER"
+      label: 0
+    class2:
+      path: "QF75/JUNI_0.4_bpnzac"
+      label: 1
+    class3:
+      path: "QF75/UED_0.3_bpnzac"
+      label: 2

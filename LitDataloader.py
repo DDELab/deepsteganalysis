@@ -1,9 +1,12 @@
 import os
+import sys
 import random
 import pandas as pd
 from typing import Optional, Generator, Union, IO, Dict, Callable
 from pathlib import Path
-import argparse 
+from braceexpand import braceexpand
+import argparse
+import glob
 
 import pytorch_lightning as pl
 from retriever import TrainRetriever, TrainRetrieverPaired
@@ -23,22 +26,52 @@ class LitStegoDataModule(pl.LightningDataModule):
         pass
 
     def setup(self, stage: Optional[str] = None):
-        args = self.args
-        qfs = ['75']
-                
-        classes = [ ['QF'+str(q)+'/COVER', 'QF'+str(q)+'/JUNI_0.4_bpnzac'  ,'QF'+str(q)+'/UED_0.3_bpnzac'  ] for q in qfs ]
-                   
-        IL_train = os.listdir(args.dataset.data_path+'QF75/COVER/TRN/')
-        IL_val = os.listdir(args.dataset.data_path+'QF75/COVER/VAL/')
 
         dataset = []
+
+        for class_key in self.args.dataset.desc.keys():
+            class_datapathes = braceexpand(self.args.dataset.desc[class_key].path)
+
+            for class_datapath in class_datapathes:
+                # Add training samples
+                full_temp_path = os.path.join(self.args.dataset.data_path,
+                                              class_datapath,
+                                              self.args.dataset.train_id,
+                                              "*" + self.args.dataset.file_ext)
+                filelist = glob.glob(full_temp_path)
+                
+                for a_file in filelist:
+                    _, filename = os.path.split(a_file)
+                    dataset.append({
+                        'kind': os.path.join(class_datapath, self.args.dataset.train_id),
+                        'image_name': filename,
+                        'label': self.args.dataset.desc[class_key].label,
+                        'fold': 1,
+                    })
+
+                # Add validation samples
+                full_temp_path = os.path.join(self.args.dataset.data_path,
+                                              class_datapath,
+                                              self.args.dataset.val_id,
+                                              "*" + self.args.dataset.file_ext)
+                filelist = glob.glob(full_temp_path)
+                for a_file in filelist:
+                    _, filename = os.path.split(a_file)
+                    dataset.append({
+                        'kind': os.path.join(class_datapath, self.args.dataset.val_id),
+                        'image_name': filename,
+                        'label': self.args.dataset.desc[class_key].label,
+                        'fold': 0,
+                    })
+
+        '''
         if args.dataset.pair_constraint:
             retriever = TrainRetrieverPaired
             for cl in classes:
                 for path in IL_train:
                     dataset.append({
                         'kind': tuple([c + '/TRN' for c in cl]),
-                        'image_name': (path, path, path, path),
+                        'image_name': (path, path, path),
                         'label': (0,1,2),
                         'fold':1,
                     })
@@ -46,52 +79,35 @@ class LitStegoDataModule(pl.LightningDataModule):
                 for path in IL_val:
                     dataset.append({
                         'kind': tuple([c + '/VAL' for c in cl]),
-                        'image_name': (path, path, path, path),
+                        'image_name': (path, path, path),
                         'label': (0,1,2),
                         'fold':0,
                     })
         else:
-            retriever = TrainRetriever
-            for cl in classes:
-                for label, kind in enumerate(cl):
-                    for path in IL_train:
-                        dataset.append({
-                            'kind': kind+'/TRN',
-                            'image_name': path,
-                            'label': label,
-                            'fold':1,
-                        })
-            for cl in classes:
-                for label, kind in enumerate(cl):
-                    for path in IL_val:
-                        dataset.append({
-                            'kind': kind+'/VAL',
-                            'image_name': path,
-                            'label': label,
-                            'fold':0,
-                        })
+        '''
 
+        retriever = TrainRetriever
         random.shuffle(dataset)
         dataset = pd.DataFrame(dataset)
-        
+
         self.train_dataset = retriever(
-            data_path=args.dataset.data_path,
+            data_path=self.args.dataset.data_path,
             kinds=dataset[dataset['fold'] != 0].kind.values,
             image_names=dataset[dataset['fold'] != 0].image_name.values,
             labels=dataset[dataset['fold'] != 0].label.values,
             transforms=get_train_transforms(),
-            num_classes=len(classes[0]),
-            decoder=args.dataset.decoder
+            num_classes=len(self.args.dataset.desc.keys()),
+            decoder=self.args.dataset.decoder
         )
         
         self.valid_dataset = retriever(
-            data_path=args.dataset.data_path,
+            data_path=self.args.dataset.data_path,
             kinds=dataset[dataset['fold'] == 0].kind.values,
             image_names=dataset[dataset['fold'] == 0].image_name.values,
             labels=dataset[dataset['fold'] == 0].label.values,
             transforms=get_valid_transforms(),
-            num_classes=len(classes[0]),
-            decoder=args.dataset.decoder
+            num_classes=len(self.args.dataset.desc.keys()),
+            decoder=self.args.dataset.decoder
         )
 
     def train_dataloader(self):
