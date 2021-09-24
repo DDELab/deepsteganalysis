@@ -45,7 +45,7 @@ def dump_data_desc(args, dirpath):
 def setup_callbacks_loggers(args):
     
     if args.logging.project is None:
-        args.logging.project = os.getcwd().split('/')[-1]
+        args.logging.project = os.getcwd().split('/')[-2]
 
     if args.logging.eid is None:
         args.logging.eid = gen_run_name()
