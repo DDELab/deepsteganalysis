@@ -7,7 +7,12 @@ import timm
 import numpy as np
 import types
 import torch
+from efficientnet_pytorch import EfficientNet
 from models.SRNet import SRNet
+
+def luke_efficientnet(name='efficientnet_b4', num_classes=2, in_chans=3, pretrained=True):
+    net = EfficientNet.from_pretrained(name, in_channels=in_chans, num_classes=num_classes)
+    return net
 
 zoo_params = {
 
@@ -27,6 +32,12 @@ zoo_params = {
         'fc_name': 'classifier',
         'conv_stem_name': 'conv_stem',
         'init_op': partial(timm.create_model, 'efficientnet_b4') 
+    },
+
+    'luke_efficientnet_b4': {
+        'fc_name': '_fc',
+        'conv_stem_name': '_conv_stem',
+        'init_op': partial(luke_efficientnet, 'efficientnet-b4')
     },
 
     'srnet': {

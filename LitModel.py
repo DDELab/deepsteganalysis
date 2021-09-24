@@ -18,7 +18,7 @@ class LitModel(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters(self.args)
         
-        self.train_metrics = {'train_mPE': PE()}
+        self.train_metrics = {}#{'train_mPE': PE()}
         self.validation_metrics = {'val_acc': Accuracy(), 'val_wAUC': wAUC(), 'val_mPE': PE(), 'val_MD5': MD5()}
         
         self.__set_attributes(self.train_metrics)

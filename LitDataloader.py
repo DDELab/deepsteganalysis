@@ -26,7 +26,7 @@ class LitStegoDataModule(pl.LightningDataModule):
         args = self.args
         qfs = ['75']
                 
-        classes = [ ['QF'+str(q)+'/COVER', 'QF'+str(q)+'/JUNI_0.4_bpnzac'  ,'QF'+str(q)+'/UED_0.3_bpnzac'  ] for q in qfs ]
+        classes = [ ['QF'+str(q)+'/COVER', 'QF'+str(q)+'/JUNI_0.6_bpnzac'  ,'QF'+str(q)+'/UED_0.3_bpnzac'  ] for q in qfs ]
                    
         IL_train = os.listdir(args.dataset.data_path+'QF75/COVER/TRN/')
         IL_val = os.listdir(args.dataset.data_path+'QF75/COVER/VAL/')
