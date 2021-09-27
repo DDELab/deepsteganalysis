@@ -85,11 +85,12 @@ class LitModel(pl.LightningModule):
         # 3. Compute metrics and log:
         self.log('val_loss', val_loss, on_step=True, on_epoch=False,  prog_bar=False, logger=False, sync_dist=False)
         for metric_name in self.validation_metrics.keys():
-            self.log(metric_name, getattr(self, metric_name)(y_logits, y), on_step=True, on_epoch=False, prog_bar=False, logger=False, sync_dist=False)
+            getattr(self, metric_name).update(y_logits, y)
 
     def validation_epoch_end(self, outputs):
         for metric_name in self.validation_metrics.keys():
             self.log(metric_name, getattr(self, metric_name).compute(), on_step=False, on_epoch=True, prog_bar=False, logger=True, sync_dist=True)
+            getattr(self, metric_name).reset()
 
     def test_step(self, batch, batch_idx):
         x, y, name = batch
