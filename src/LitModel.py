@@ -73,6 +73,7 @@ class LitModel(pl.LightningModule):
     def training_epoch_end(self, outputs):
         for metric_name in self.train_metrics.keys():
             self.log(metric_name, getattr(self, metric_name).compute(), on_step=False, on_epoch=True, prog_bar=False, logger=True, sync_dist=True)
+            getattr(self, metric_name).reset()
 
     def validation_step(self, batch, batch_idx):
         # 1. Forward pass:
