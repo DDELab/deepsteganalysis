@@ -1,8 +1,7 @@
-torch==1.6.0
 numpy
 pandas
 cython
-timm==0.1.26
+timm
 tensorboard==2.2.0
 pytorch-lightning==1.4.6
 opencv-python
@@ -13,3 +12,4 @@ torchmetrics==0.5.1
 omegaconf==2.1.1
 wonderwords==2.2.0
 braceexpand==0.1.7
+wandb
