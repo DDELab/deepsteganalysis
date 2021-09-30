@@ -22,8 +22,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install git+https://github.com/dwgoon/jpegio
 
 # Copy all the files from the project’s root to the working directory
-COPY . deepsteganalysis
+COPY --chown=stego:stego . deepsteganalysis
 WORKDIR /home/stego/deepsteganalysis
 
 # Running Python Application
-CMD ["python3", "./train_lit_model.py", "logging.wandb.activate=False", "training.epochs=1"]
+CMD ["python3", "./train_lit_model.py"]

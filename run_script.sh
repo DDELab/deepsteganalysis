@@ -1,1 +1,1 @@
-docker run --gpus all --rm -it --shm-size=16G -v "/media:/media" stego
+docker run --gpus all -it --shm-size=16G -v "/media:/media" stego
