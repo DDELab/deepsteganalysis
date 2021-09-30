@@ -24,7 +24,7 @@ def main(args):
     model = LitModel(args)
     datamodule = LitStegoDataModule(args)
     ckpt_callback, loggers, lr_logger = setup_callbacks_loggers(args)
-    
+
     trainer = Trainer(logger=loggers,
                       callbacks=[ckpt_callback, lr_logger],
                       gpus=args.training.gpus,
@@ -35,17 +35,17 @@ def main(args):
                       amp_level=args.training.amp_level,
                       log_every_n_steps=100,
                       flush_logs_every_n_steps=100,
-                      distributed_backend='ddp' if len(args.training.gpus) > 1 else None,
+                      accelerator='ddp' if len(args.training.gpus) > 1 else None,
                       benchmark=True,
                       sync_batchnorm=True,
                       resume_from_checkpoint=args.ckpt.resume_from)
-    
+
     trainer.logger.log_hyperparams(model.hparams)
-    
+
     trainer.fit(model, datamodule)
 
-def run_cli():   
-    # os.path.join(os.path.expanduser('~') 
+def run_cli():
+    # os.path.join(os.path.expanduser('~')
     args = get_args_cli_yaml(cfg_path="cfg/debug.yaml")
     main(args)
 
