@@ -17,5 +17,5 @@ def get_args_cli_yaml(cfg_path=""):
     return conf
 
 if __name__ == '__main__':
-    args = get_args_cli_yaml(cfg_path="cfg/debug.yaml")
+    args = get_args_cli_yaml(cfg_path="cfg/default.yaml")
     print(OmegaConf.to_yaml(args))

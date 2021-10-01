@@ -13,16 +13,16 @@ from pytorch_lightning.utilities.distributed import rank_zero_only
 
 from LitModel import LitModel
 from dataloading.LitDataloader import LitStegoDataModule
-from tools.log_utils import gen_run_name, setup_callbacks_loggers
+from tools.log_utils import setup_callbacks_loggers
 from tools.options_utils import get_args_cli_yaml
 
 def main(args):
     """ Main training routine specific for this project. """
 
     seed_everything(args.training.seed)
-
-    model = LitModel(args)
+    
     datamodule = LitStegoDataModule(args)
+    model = LitModel(args, datamodule.in_chans, datamodule.num_classes)
     ckpt_callback, loggers, lr_logger = setup_callbacks_loggers(args)
 
     trainer = Trainer(logger=loggers,
@@ -46,7 +46,7 @@ def main(args):
 
 def run_cli():
     # os.path.join(os.path.expanduser('~')
-    args = get_args_cli_yaml(cfg_path="cfg/debug.yaml")
+    args = get_args_cli_yaml(cfg_path="cfg/default.yaml")
     main(args)
 
 if __name__ == '__main__':

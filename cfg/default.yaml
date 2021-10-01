@@ -11,7 +11,7 @@ training:
   seed: 1994
   gpus: [0, 1]
   epochs: 40
-  batch_size: 32
+  batch_size: 16
   amp_level: "O1"
 
 ckpt:
@@ -54,7 +54,7 @@ model:
 dataset:
   size: 50
   file_ext: '.jpg'
-  decoder: 'NR'
+  decoder: 'y'
   data_path: '/media/multi_quality_factor/JPEG_standard/'
   pair_constraint: False
   num_workers: 6

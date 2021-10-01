@@ -1,6 +1,7 @@
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import torch
+import wandb
 import torch.nn.functional as F
 import pytorch_lightning as pl
 from optimizers import get_optimizer, get_lr_scheduler, get_lr_scheduler_params
@@ -12,17 +13,21 @@ class LitModel(pl.LightningModule):
     """
     Train a steganalysis model
     """
-    def __init__(self, args) -> None:
+    def __init__(self, args, in_chans, num_classes) -> None:
         
         self.args = args
+        self.in_chans = in_chans
+        self.num_classes = num_classes
         super().__init__()
         self.save_hyperparameters(self.args)
         
-        self.train_metrics = {'train_mPE': PE()}
-        self.validation_metrics = {'val_acc': Accuracy(), 'val_wAUC': wAUC(), 'val_mPE': PE(), 'val_MD5': MD5()}
+        self.train_metrics = {'train/PE': PE()}
+        self.val_metrics = {'val/acc': Accuracy(), 'val/wAUC': wAUC(), 'val/PE': PE(), 'val/MD5': MD5()}
+        self.test_metrics = {'test/acc': Accuracy(), 'test/wAUC': wAUC(), 'test/PE': PE(), 'test/MD5': MD5()}
         
         self.__set_attributes(self.train_metrics)
-        self.__set_attributes(self.validation_metrics)
+        self.__set_attributes(self.val_metrics)
+        self.__set_attributes(self.test_metrics)
         self.__build_model()
     
     def __set_attributes(self, attributes_dict):
@@ -33,8 +38,8 @@ class LitModel(pl.LightningModule):
         """Define model layers & loss."""
         # 1. Load pre-trained network:
         self.net = get_net(self.args.model.backbone, 
-                           num_classes=3, #TODO automate this
-                           in_chans=1, #TODO automate this
+                           num_classes=self.num_classes,
+                           in_chans=self.in_chans,
                            imagenet=self.args.ckpt.imagenet, 
                            ckpt_path=self.args.ckpt.seed_from)
         
@@ -85,26 +90,47 @@ class LitModel(pl.LightningModule):
         
         # 3. Compute metrics and log:
         self.log('val_loss', val_loss, on_step=True, on_epoch=False,  prog_bar=False, logger=False, sync_dist=False)
-        for metric_name in self.validation_metrics.keys():
+        for metric_name in self.val_metrics.keys():
             getattr(self, metric_name).update(y_logits, y)
 
     def validation_epoch_end(self, outputs):
-        for metric_name in self.validation_metrics.keys():
+        for metric_name in self.val_metrics.keys():
             self.log(metric_name, getattr(self, metric_name).compute(), on_step=False, on_epoch=True, prog_bar=False, logger=True, sync_dist=True)
             getattr(self, metric_name).reset()
 
+    def on_test_epoch_start(self, *args, **kwargs):
+        super().on_test_epoch_start(*args, **kwargs)
+        self.test_table = wandb.Table(columns=['name', 'label', 'preds'])
+
     def test_step(self, batch, batch_idx):
+        # 1. Forward pass:
         x, y, name = batch
         y_logits = self.forward(x)
-        y_pred = 1 - F.softmax(y_logits.double(), dim=1)[:,0]
+
+        # 2. Compute loss:
+        val_loss = self.loss(y_logits, y)
+        for i in range(len(name)):
+            self.test_table.add_data(name[i], y[i], y_logits[i])
         
-        result = pl.EvalResult()
-        result.write('preds_logit', y_pred, filename='predictions.txt')
-        result.write('label', torch.argmax(y, dim=1), filename='predictions.txt')
-        result.write('name', list(name), filename='predictions.txt')
-        return result
+        # 3. Compute metrics and log:
+        for metric_name in self.test_metrics.keys():
+            getattr(self, metric_name).update(y_logits, y)
+
+    def test_epoch_end(self, outputs):
+        test_summary = {'ckpt_path': self.args.ckpt.resume_from}
+        for metric_name in self.test_metrics.keys():
+            test_summary[metric_name] = getattr(self, metric_name).compute()
+            getattr(self, metric_name).reset()
+        if self.global_rank > 0:
+            return
+        for metric_name in self.test_metrics.keys():
+            self.logger[0].experiment.summary[metric_name] = test_summary[metric_name]
+        self.logger[0].experiment.log({'test_table': self.test_table})
+        self.logger[0].experiment.summary['ckpt_path'] = test_summary['ckpt_path']
+        return test_summary
         
     def configure_optimizers(self):
+        # TODO: clean this!!!
 
         optimizer = get_optimizer(self.args.optimizer.name)
         

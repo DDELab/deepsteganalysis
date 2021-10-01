@@ -21,13 +21,13 @@ def get_train_transforms():
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.5),
             A.RandomRotate90(p=1.0),
-            A.Resize(height=256, width=256, p=1.0),
+            #A.Resize(height=256, width=256, p=1.0),
             ToTensorV2(p=1.0),
         ], p=1.0, additional_targets={'image2':'image'})
 
 def get_valid_transforms():
     return A.Compose([
-            A.Resize(height=256, width=256, p=1.0),
+            #A.Resize(height=256, width=256, p=1.0),
             ToTensorV2(p=1.0),
         ], p=1.0, additional_targets={'image2':'image'})
 
@@ -36,9 +36,39 @@ def onehot(size, target):
     vec[target] = 1.
     return vec
 
+def decoder2in_chans(decoder):
+    if decoder == 'ycbcr':
+        return 3
+    elif decoder == 'rgb':
+        return 3
+    elif decoder == 'y':
+        return 1
+
+def ycbcr_decode(path):
+    tmp = jio.read(path)
+    image = decompress_structure(tmp)
+    image = image[:,:,:].astype(np.float32)
+    image /= 255.0
+    return image
+
+def rgb_decode(path):
+    tmp = jio.read(path)
+    image = decompress_structure(tmp)
+    image = image[:,:,:].astype(np.float32)
+    image = ycbcr2rgb(image).astype(np.float32)
+    image /= 255.0
+    return image
+
+def y_decode(path):
+    tmp = jio.read(path)
+    image = decompress_structure(tmp)
+    image = image[:,:,:1].astype(np.float32)
+    image /= 255.0
+    return image
+
 class TrainRetriever(Dataset):
 
-    def __init__(self, data_path, kinds, image_names, labels, decoder='NR', transforms=None, return_name=False, num_classes=2):
+    def __init__(self, data_path, kinds, image_names, labels, decoder='y', transforms=None, return_name=False, num_classes=2):
         super().__init__()
         
         self.data_path = data_path
@@ -49,39 +79,24 @@ class TrainRetriever(Dataset):
         self.transforms = transforms
         self.decoder = decoder
         self.num_classes = num_classes
-        self.mean = np.array([0.3914976, 0.44266784, 0.46043398])
-        self.std = np.array([0.17819773, 0.17319807, 0.18128773])
 
     def __getitem__(self, index: int):
         
         kind, image_name, label = self.kinds[index], self.image_names[index], self.labels[index]
-        
-        if  self.decoder == 'NR':
-            tmp = jio.read(f'{self.data_path}/{kind}/{image_name}')
-            image = decompress_structure(tmp)
-            image = image[:,:,:1].astype(np.float32)
-            #image = ycbcr2rgb(image).astype(np.float32)
-            image /= 255.0
-        elif self.decoder == 'NRYYY':
-            tmp = jio.read(f'{self.data_path}/{kind}/{image_name}')
-            image = decompress_structure(tmp)
-            image = image[:,:,[0,0,0]].astype(np.float32)
-            image /= 255.0
-        else:
-            image = cv2.imread(f'{self.data_path}/{kind}/{image_name}', cv2.IMREAD_COLOR)
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
-            image /= 255.0
+        if  self.decoder == 'ycbcr':
+            image = ycbcr_decode(f'{self.data_path}/{kind}/{image_name}')
+        elif  self.decoder == 'rgb':
+            image = rgb_decode(f'{self.data_path}/{kind}/{image_name}')
+        elif  self.decoder == 'y':
+            image = y_decode(f'{self.data_path}/{kind}/{image_name}')
         if self.transforms:
             sample = {'image': image}
             sample = self.transforms(**sample)
             image = sample['image']
-            
-        #label = onehot(self.num_classes, label)
-        
+                    
         if self.return_name:
             return image, label, image_name
-        else:
-            return image, label
+        return image, label
 
     def __len__(self) -> int:
         return self.image_names.shape[0]
@@ -90,10 +105,9 @@ class TrainRetriever(Dataset):
         return list(self.labels)
     
     
-    
 class TrainRetrieverPaired(Dataset):
 
-    def __init__(self, data_path, kinds, image_names, labels, decoder='NR', transforms=None, num_classes=2):
+    def __init__(self, data_path, kinds, image_names, labels, decoder='y', transforms=None, return_name=False, num_classes=2):
         super().__init__()
         
         self.data_path = data_path
@@ -103,23 +117,24 @@ class TrainRetrieverPaired(Dataset):
         self.transforms = transforms
         self.decoder = decoder
         self.num_classes = num_classes
+        self.return_name = return_name
 
     def __getitem__(self, index: int):
         
         kind, image_name, label = self.kinds[index], self.image_names[index], self.labels[index]
-        tmp = jio.read(f'{self.data_path}/{kind[0]}/{image_name}')
-        cover = decompress_structure(tmp)
-        cover = cover[:,:,:1].astype(np.float32)
-        #cover = ycbcr2rgb(cover).astype(np.float32)
-        cover /= 255.0
-        target_cover = label[0]
-        
         i = np.random.randint(low=1, high=self.num_classes)
-        tmp = jio.read(f'{self.data_path}/{kind[i]}/{image_name}')
-        stego = decompress_structure(tmp)
-        stego = stego[:,:,:1].astype(np.float32)
-        #stego = ycbcr2rgb(stego).astype(np.float32)
-        stego /= 255.0
+
+        if  self.decoder == 'ycbcr':
+            cover = ycbcr_decode(f'{self.data_path}/{kind[0]}/{image_name}')
+            stego = ycbcr_decode(f'{self.data_path}/{kind[i]}/{image_name}')
+        elif  self.decoder == 'rgb':
+            cover = ycbcr_decode(f'{self.data_path}/{kind[0]}/{image_name}')
+            stego = ycbcr_decode(f'{self.data_path}/{kind[i]}/{image_name}')
+        elif  self.decoder == 'y':
+            cover = ycbcr_decode(f'{self.data_path}/{kind[0]}/{image_name}')
+            stego = ycbcr_decode(f'{self.data_path}/{kind[i]}/{image_name}')
+
+        target_cover = label[0]
         target_stego = label[i]
             
         if self.transforms:
@@ -127,7 +142,9 @@ class TrainRetrieverPaired(Dataset):
             sample = self.transforms(**sample)
             cover = sample['image']
             stego = sample['image2']
-            
+
+        if self.return_name:
+            return  torch.stack([cover,stego]), torch.as_tensor([target_cover, target_stego]), torch.as_tensor([image_name, image_name])
         return torch.stack([cover,stego]), torch.as_tensor([target_cover, target_stego])
 
     def __len__(self) -> int:
@@ -135,43 +152,3 @@ class TrainRetrieverPaired(Dataset):
 
     def get_labels(self):
         return list(self.labels)
-    
-    
-class TestRetriever(Dataset):
-
-    def __init__(self, data_path, kinds, image_names, labels, decoder='NR', transforms=None):
-        super().__init__()
-        self.data_path = data_path
-        self.test_data_path = self.data_path+'Test/'
-        self.kinds = kinds
-        self.image_names = image_names
-        self.labels = labels
-        self.transforms = transforms
-        self.decoder = decoder
-
-    def __getitem__(self, index: int):
-        image_name = self.image_names[index]
-        
-        if  self.decoder == 'NR':
-            tmp = jio.read(f'{self.test_data_path}/{image_name}')
-            image = decompress_structure(tmp).astype(np.float32)
-            image = image[:,:,:1].astype(np.float32)
-            #image = ycbcr2rgb(image)
-            image /= 255.0
-        else:
-            image = cv2.imread(f'{self.folder}/{image_name}', cv2.IMREAD_COLOR)
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
-            image /= 255.0
-            
-        image = self.func_transforms(image)
-
-        if self.transforms:
-            sample = {'image': image}
-            sample = self.transforms(**sample)
-            image = sample['image']
-
-        return image_name, image
-
-    def __len__(self) -> int:
-        return self.image_names.shape[0]
-    
