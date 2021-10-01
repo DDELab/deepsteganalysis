@@ -8,6 +8,7 @@ import numpy as np
 import torch.nn.functional as F
 import torch
 from tools.decorators import _numpy_metric_conversion
+from tools.numpy_utils import check_nans
 from torchmetrics.utilities.data import dim_zero_cat
 from torchmetrics.classification.auc import AUC
 from torchmetrics.classification.accuracy import Accuracy
@@ -21,6 +22,8 @@ def wauc(y_true, y_pred):
     tpr_thresholds = [0.0, 0.4, 1.0]
     weights = [2, 1]
     fpr, tpr, thresholds = roc_curve(y_true, y_pred, pos_label=1, drop_intermediate=False)
+    if check_nans(fpr, tpr):
+        return np.nan
     areas = np.array(tpr_thresholds[1:]) - np.array(tpr_thresholds[:-1])
     normalization = np.dot(areas, weights)
 
@@ -44,11 +47,15 @@ def wauc(y_true, y_pred):
 @_numpy_metric_conversion
 def md5(y_true, y_pred):
     fpr, tpr, thresholds = roc_curve(y_true, y_pred, pos_label=1, drop_intermediate=False)
+    if check_nans(fpr, tpr):
+        return np.nan
     return 1-np.interp(0.05, fpr, tpr) 
 
 @_numpy_metric_conversion   
 def pe(y_true, y_pred):
     fpr, tpr, thresholds = roc_curve(y_true, y_pred, pos_label=1, drop_intermediate=False)
+    if check_nans(fpr, tpr):
+        return np.nan
     P = 0.5*(fpr+(1-tpr))
     return min(P[P>0])
 
