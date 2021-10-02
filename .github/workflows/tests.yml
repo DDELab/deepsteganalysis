@@ -33,7 +33,7 @@ jobs:
         pip install pytest pytest-timeout
     - name: Install torch on ubuntu
       run: |
-        pip install --no-cache-dir torch==${{ matrix.torch }}+cpu torchvision==${{ matrix.torchvision }}+cpu -f https://download.pytorch.org/whl/torch_stable.html
+        pip install --no-cache-dir torch==${{ matrix.torch }}+cpu torchvision==${{ matrix.torchvision }}+cpu -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html
         sudo apt update
     - name: Install requirements
       run: |
