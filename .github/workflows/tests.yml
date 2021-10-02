@@ -1,0 +1,45 @@
+name: training tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  OMP_NUM_THREADS: 2
+  MKL_NUM_THREADS: 2
+
+jobs:
+  test:
+    name: Run tests on ${{ matrix.os }} with Python ${{ matrix.python }}
+    strategy:
+      matrix:
+        os: [ubuntu-18.04]
+        python: ['3.6.9']
+        torch: ['1.8.2']
+        torchvision: ['0.9.2']
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Install testing dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-timeout
+    - name: Install torch on ubuntu
+      run: |
+        pip install --no-cache-dir torch==${{ matrix.torch }}+cpu torchvision==${{ matrix.torchvision }}+cpu -f https://download.pytorch.org/whl/torch_stable.html
+        sudo apt update
+    - name: Install requirements
+      run: |
+        pip install -r requirements.txt
+    - name: Run tests
+      env:
+        LD_PRELOAD: /usr/lib/x86_64-linux-gnu/libtcmalloc.so.4
+      run: |
+        python train_lit_model.py config=tests/test_config.yaml
