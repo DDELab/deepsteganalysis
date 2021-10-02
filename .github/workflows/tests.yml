@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-18.04]
-        python: ['3.6.9']
+        python: ['3.6.15']
         torch: ['1.8.2']
         torchvision: ['0.9.2']
     runs-on: ${{ matrix.os }}
