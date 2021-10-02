@@ -4,7 +4,8 @@ import torch
 import wandb
 import torch.nn.functional as F
 import pytorch_lightning as pl
-from optimizers import get_optimizer, get_lr_scheduler, get_lr_scheduler_params
+from optim.optimizers import get_optimizer
+from optim.schedulers import get_lr_scheduler
 import models.surgeries
 from models.models import get_net
 from metrics import Accuracy, wAUC, PE, MD5
@@ -130,49 +131,12 @@ class LitModel(pl.LightningModule):
         return test_summary
         
     def configure_optimizers(self):
-        # TODO: clean this!!!
+        param_list = list(self.net.named_parameters())
 
-        optimizer = get_optimizer(self.args.optimizer.name)
-        
-        optimizer_kwargs = {'momentum': 0.9} if self.args.optimizer.name == 'sgd' else {'eps': self.args.optimizer.eps}
-        
-        param_optimizer = list(self.net.named_parameters())
-        
-        if self.args.optimizer.decay_not_bias_norm:
-            no_decay = ['bias', 'norm.bias', 'norm.weight', 'fc.weight', 'fc.bias']
-        else:
-            no_decay = []
-        optimizer_grouped_parameters = [
-            {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': self.args.optimizer.weight_decay},
-            {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
-            ] 
-        optimizer = optimizer(optimizer_grouped_parameters, 
-                              lr=self.args.optimizer.lr, 
-                              **optimizer_kwargs)
-        
+        optimizer = get_optimizer(param_list, self.args)
+
         train_len = len(self.trainer.datamodule.train_dataset)
-        #print("######### Training len", train_len)
         batch_size = self.args.training.batch_size
-        #print("########## Batch size", batch_size)
-
-        if self.args.optimizer.lr_scheduler_name == 'cos':
-            scheduler_kwargs = {'T_max': self.args.training.epochs*train_len//len(self.args.training.gpus)//batch_size,
-                                'eta_min':self.args.optimizer.lr/50}
-
-        elif self.args.optimizer.lr_scheduler_name == 'onecycle':
-            scheduler_kwargs = {'max_lr': self.args.optimizer.lr, 'epochs': self.args.training.epochs,
-                                'steps_per_epoch':train_len//len(self.args.training.gpus)//batch_size,
-                                'pct_start':4.0/self.args.training.epochs,'div_factor':25,'final_div_factor':2}
-                                #'div_factor':25,'final_div_factor':2}
-
-        elif self.args.optimizer.lr_scheduler_name == 'multistep':
-             scheduler_kwargs = {'milestones':[350]}
-
-        elif self.args.optimizer.lr_scheduler_name == 'const':
-            scheduler_kwargs = {'lr_lambda': lambda epoch: 1}
             
-        scheduler = get_lr_scheduler(self.args.optimizer.lr_scheduler_name)
-        scheduler_params, interval = get_lr_scheduler_params(self.args.optimizer.lr_scheduler_name, **scheduler_kwargs)
-        scheduler = scheduler(optimizer, **scheduler_params)
-
+        scheduler, interval = get_lr_scheduler(optimizer, self.args, train_len, batch_size)
         return [optimizer], [{'scheduler':scheduler, 'interval': interval, 'name': 'lr'}]
