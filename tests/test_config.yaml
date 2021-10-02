@@ -11,7 +11,7 @@ training:
   seed: 1994
   gpus: null
   epochs: 1
-  batch_size: 16
+  batch_size: 8
   amp_level: "O1"
   precision: 32
 
