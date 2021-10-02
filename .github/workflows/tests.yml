@@ -38,6 +38,7 @@ jobs:
     - name: Install requirements
       run: |
         pip install -r requirements.txt
+        pip install git+https://github.com/dwgoon/jpegio
     - name: Run tests
       env:
         LD_PRELOAD: /usr/lib/x86_64-linux-gnu/libtcmalloc.so.4
