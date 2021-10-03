@@ -1,21 +1,28 @@
+'''
+"Improving EfficientNet for JPEG Steganalysis"
+Yassine Yousfi, Jan Butora, Jessica Fridrich, Clément Fuji Tsang
+http://www.ws.binghamton.edu/fridrich/Research/11_SURGERIES_v8_preprint.pdf
+'''
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
+from operator import attrgetter
 from functools import partial
 from torch import nn
 import timm
 import types
 import torch
 from models.models import zoo_params
-
     
 def nostride(net):
-    assert 'efficientnet' in net.model_name, 'No stride only supported for EfficientNet'
-    getattr(net, zoo_params[net.model_name]['conv_stem_name']).stride = (1,1)
+    # set strides of all layers directly operating on the input
+    for layer_name in zoo_params[net.model_name]['conv_stem_name']:
+        retriever = attrgetter(layer_name)
+        retriever(net).stride = (1,1)
     return net
         
 def poststem(net): 
     assert 'efficientnet' in net.model_name, 'Post stem only supported for EfficientNet'
-    num_channels = getattr(net, zoo_params[net.model_name]['conv_stem_name']).out_channels 
+    num_channels = getattr(net, zoo_params[net.model_name]['conv_stem_name'][0]).out_channels 
     net = nostride(net)
     
     net.post_stem = nn.ModuleList([timm.models.efficientnet_blocks.InvertedResidual(in_chs=num_channels, out_chs=num_channels, noskip=True),

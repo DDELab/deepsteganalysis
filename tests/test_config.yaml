@@ -55,6 +55,7 @@ model:
 dataset:
   size: 50
   file_ext: '.jpg'
+  augs_type: 'spatial_d4'
   decoder: 'y'
   data_path: 'tests/media/BBQF75/'
   pair_constraint: False

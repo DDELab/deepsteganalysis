@@ -1,3 +1,8 @@
+'''
+"Deep Residual Network for Steganalysis of Digital Images"
+Mehdi Boroumand, Mo Chen, and Jessica Fridrich
+http://www.ws.binghamton.edu/fridrich/Research/SRNet.pdf
+'''
 import torch
 import types
 from timm.models.layers import Swish

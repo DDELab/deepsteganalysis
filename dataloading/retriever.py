@@ -4,32 +4,15 @@ import jpegio as jio
 import pandas as pd
 import numpy as np
 import pickle
+import random
 import cv2
-import albumentations as A
 import os
-from albumentations.pytorch.transforms import ToTensorV2
 from torch.utils.data import Dataset, DataLoader
 import torch
 import sys
 sys.path.insert(1,'./')
 from tools.jpeg_utils import *
 
-DATA_ROOT_PATH = os.environ.get('DATA_ROOT_PATH')
-
-def get_train_transforms():
-    return A.Compose([
-            A.HorizontalFlip(p=0.5),
-            A.VerticalFlip(p=0.5),
-            A.RandomRotate90(p=1.0),
-            #A.Resize(height=256, width=256, p=1.0),
-            ToTensorV2(p=1.0),
-        ], p=1.0, additional_targets={'image2':'image'})
-
-def get_valid_transforms():
-    return A.Compose([
-            #A.Resize(height=256, width=256, p=1.0),
-            ToTensorV2(p=1.0),
-        ], p=1.0, additional_targets={'image2':'image'})
 
 def onehot(size, target):
     vec = torch.zeros(size, dtype=torch.float32)
@@ -43,6 +26,8 @@ def decoder2in_chans(decoder):
         return 3
     elif decoder == 'y':
         return 1
+    elif decoder == 'onehot':
+        return 6
 
 def ycbcr_decode(path):
     tmp = jio.read(path)
@@ -65,6 +50,9 @@ def y_decode(path):
     image = image[:,:,:1].astype(np.float32)
     image /= 255.0
     return image
+
+def onehot_decode(path):
+    return jio.read(path)
 
 class TrainRetriever(Dataset):
 
@@ -89,6 +77,8 @@ class TrainRetriever(Dataset):
             image = rgb_decode(f'{self.data_path}/{kind}/{image_name}')
         elif  self.decoder == 'y':
             image = y_decode(f'{self.data_path}/{kind}/{image_name}')
+        elif  self.decoder == 'onehot':
+            image = onehot_decode(f'{self.data_path}/{kind}/{image_name}')
         if self.transforms:
             sample = {'image': image}
             sample = self.transforms(**sample)
@@ -128,11 +118,14 @@ class TrainRetrieverPaired(Dataset):
             cover = ycbcr_decode(f'{self.data_path}/{kind[0]}/{image_name}')
             stego = ycbcr_decode(f'{self.data_path}/{kind[i]}/{image_name}')
         elif  self.decoder == 'rgb':
-            cover = ycbcr_decode(f'{self.data_path}/{kind[0]}/{image_name}')
-            stego = ycbcr_decode(f'{self.data_path}/{kind[i]}/{image_name}')
+            cover = rgb_decode(f'{self.data_path}/{kind[0]}/{image_name}')
+            stego = rgb_decode(f'{self.data_path}/{kind[i]}/{image_name}')
         elif  self.decoder == 'y':
-            cover = ycbcr_decode(f'{self.data_path}/{kind[0]}/{image_name}')
-            stego = ycbcr_decode(f'{self.data_path}/{kind[i]}/{image_name}')
+            cover = y_decode(f'{self.data_path}/{kind[0]}/{image_name}')
+            stego = y_decode(f'{self.data_path}/{kind[i]}/{image_name}')
+        elif  self.decoder == 'onehot':
+            cover = onehot_decode(f'{self.data_path}/{kind[0]}/{image_name}')
+            stego = onehot_decode(f'{self.data_path}/{kind[i]}/{image_name}')
 
         target_cover = label[0]
         target_stego = label[i]

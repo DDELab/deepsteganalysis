@@ -9,7 +9,8 @@ import argparse
 import glob
 
 import pytorch_lightning as pl
-from dataloading.retriever import TrainRetriever, TrainRetrieverPaired, get_train_transforms, get_valid_transforms, decoder2in_chans
+from dataloading.retriever import TrainRetriever, TrainRetrieverPaired, decoder2in_chans
+from dataloading.augmentations import get_train_transforms, get_valid_transforms
 from torch.utils.data import DataLoader
 import torch
 
@@ -107,7 +108,7 @@ class LitStegoDataModule(pl.LightningDataModule):
             kinds=dataset[dataset['fold'] != 0].kind.values,
             image_names=dataset[dataset['fold'] != 0].image_name.values,
             labels=dataset[dataset['fold'] != 0].label.values,
-            transforms=get_train_transforms(),
+            transforms=get_train_transforms(self.args.dataset.augs_type),
             num_classes=self.num_classes,
             decoder=self.args.dataset.decoder
         )
@@ -117,7 +118,7 @@ class LitStegoDataModule(pl.LightningDataModule):
             kinds=dataset[dataset['fold'] == 0].kind.values,
             image_names=dataset[dataset['fold'] == 0].image_name.values,
             labels=dataset[dataset['fold'] == 0].label.values,
-            transforms=get_valid_transforms(),
+            transforms=get_valid_transforms(self.args.dataset.augs_type),
             num_classes=self.num_classes,
             decoder=self.args.dataset.decoder
         )
@@ -127,7 +128,7 @@ class LitStegoDataModule(pl.LightningDataModule):
             kinds=dataset[dataset['fold'] == -1].kind.values,
             image_names=dataset[dataset['fold'] == -1].image_name.values,
             labels=dataset[dataset['fold'] == -1].label.values,
-            transforms=get_valid_transforms(),
+            transforms=get_valid_transforms(self.args.dataset.augs_type),
             num_classes=self.num_classes,
             return_name=True,
             decoder=self.args.dataset.decoder

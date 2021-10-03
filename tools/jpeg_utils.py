@@ -5,6 +5,7 @@ import os
 from scipy import fftpack
 from numpy.lib.stride_tricks import as_strided
 from collections import defaultdict 
+import torch
 
 quantization_dict = dict()
 quantization_dict[95] = np.array([[ 2,  1,  1,  2,  2,  4,  5,  6],
@@ -73,20 +74,44 @@ def decompress_structure(S):
     return I
 
 
+def rot_and_flip_jpeg(S, rot, flip=False):
+    """Lossless rotation and flips in the DCT domain"""
+    assert S.coef_arrays[0].shape[0] % 8 == 0, 'Image height is not a multiple of 8!'
+    assert S.coef_arrays[0].shape[1] % 8 == 0, 'Image width is not a multiple of 8!'
+    I = np.empty([S.coef_arrays[0].shape[0], S.coef_arrays[0].shape[1], S.image_components],dtype=np.int32)
+    for ch in range(I.shape[-1]):
+        C = np.copy(S.coef_arrays[ch])  
+        C = np.rot90(C, k=rot)
+        fun = lambda x: np.rot90(x,k=4-rot, axes=(2,3))
+        C = segmented_stride(C, fun)
+        # transpose
+        if rot in [1,3]:
+            fun = lambda x: np.copy(np.transpose(x, axes=[0,1,3,2]))
+            C = segmented_stride(C, fun)
+            for q in range(len(S.quant_tables)):
+                S.quant_tables[q] = S.quant_tables[q].T
+        # multiply even rows by -1
+        if rot in [1,2]:
+            C[1::2,:] *= -1
+        # multiply even columns by -1
+        if rot in [2,3]:
+            C[:,1::2] *= -1  
+        # flip
+        if flip == True:
+            C = np.fliplr(C)
+            fun = lambda x: np.flip(x, axis=3)
+            C = segmented_stride(C, fun)
+            C[:,1::2] *= -1 
+        S.coef_arrays[ch] = C[:,:]
+    return S
 
-def get_qf_dicts(folder, names):
-    names_qf = dict()
-    for name in tqdm(names, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}'):
-        tmp = jio.read(os.path.join(folder, name))
-        Q = tmp.quant_tables[0]
-        for qf in [75,90,95]:
-            if (Q == quantization_dict[qf]).all():
-                q = qf
-        names_qf[name] = q
-        
-    qf_names = defaultdict(list)
-    for key, value in sorted(names_qf.items()):
-        qf_names[value].append(key)
-        
-    return (names_qf, qf_names)
-        
+def jpeg_abs_bounded_onehot(tmp,T=5):
+    """Threshold + abs + onehot encoding"""
+    I = np.dstack(tmp.coef_arrays)
+    I = np.abs(I)
+    I = np.clip(I, a_min=0,a_max=T)
+    I_oh = np.zeros((I.shape)+(T+1,))
+    for ch in range(I.shape[-1]):
+        I_oh[:,:,ch,:] = (I[:,:,ch,np.newaxis] == range(T+1))
+    I_oh = I_oh.reshape((I.shape[0],I.shape[1], -1)).astype(np.float32)
+    return torch.from_numpy(I_oh.transpose(2,0,1)) 
