@@ -11,7 +11,6 @@ from tools.decorators import _numpy_metric_conversion
 from tools.numpy_utils import check_nans
 from torchmetrics.utilities.data import dim_zero_cat
 from torchmetrics.classification.auc import AUC
-from torchmetrics.classification.accuracy import Accuracy
 from torchmetrics.functional.classification.auc import _auc_update
 
 @_numpy_metric_conversion

@@ -19,7 +19,7 @@ ckpt:
   resume_from: null
   seed_from: null
   load_fc: True
-  imagenet: True
+  pretrained: True
 
 optimizer:
   # do not decay batch norm and bias and FC

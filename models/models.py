@@ -1,6 +1,7 @@
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 from functools import partial
+from validators import url
 import numpy as np
 from torch import nn
 import timm
@@ -38,12 +39,15 @@ zoo_params = {
 
 }
 
-def get_net(model_name, num_classes=2, in_chans=3, imagenet=True, ckpt_path=None, strict_loading=False):
-    net = zoo_params[model_name]['init_op'](num_classes=num_classes, in_chans=in_chans, pretrained=imagenet)
+def get_net(model_name, num_classes=2, in_chans=3, pretrained=True, ckpt_path=None, strict_loading=False):
+    net = zoo_params[model_name]['init_op'](num_classes=num_classes, in_chans=in_chans, pretrained=pretrained)
     net.model_name = model_name
-
+    
     if ckpt_path is not None:
-        state_dict = torch.load(ckpt_path)['state_dict']
+        if url(ckpt_path):
+            state_dict = torch.hub.load_state_dict_from_url(ckpt_path)['state_dict']
+        else:
+            state_dict = torch.load(ckpt_path)['state_dict']
         state_dict = {k.split('net.')[1]: v for k, v in state_dict.items()}
         
         # Check FC compatibility

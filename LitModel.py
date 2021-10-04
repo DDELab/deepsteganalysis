@@ -8,7 +8,8 @@ from optim.optimizers import get_optimizer
 from optim.schedulers import get_lr_scheduler
 import models.surgeries
 from models.models import get_net
-from metrics import Accuracy, wAUC, PE, MD5
+from metrics.roc_metrics import wAUC, PE, MD5
+from torchmetrics.classification.accuracy import Accuracy
     
 class LitModel(pl.LightningModule):
     """
@@ -41,7 +42,7 @@ class LitModel(pl.LightningModule):
         self.net = get_net(self.args.model.backbone, 
                            num_classes=self.num_classes,
                            in_chans=self.in_chans,
-                           imagenet=self.args.ckpt.imagenet, 
+                           pretrained=self.args.ckpt.pretrained, 
                            ckpt_path=self.args.ckpt.seed_from)
         
         # 2. Do surgery if needed
