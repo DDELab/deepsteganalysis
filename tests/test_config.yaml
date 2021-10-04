@@ -59,7 +59,7 @@ dataset:
   decoder: 'y'
   data_path: 'tests/media/BBQF75/'
   pair_constraint: False
-  num_workers: 2
+  num_workers: 1
   train_id: "TRN"
   test_id: "TST"
   val_id: "VAL"
