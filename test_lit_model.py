@@ -38,7 +38,7 @@ def main(args):
                       amp_level=args.training.amp_level,
                       log_every_n_steps=100,
                       flush_logs_every_n_steps=100,
-                      accelerator='ddp' if len(args.training.gpus) > 1 else None,
+                      accelerator='ddp' if len(args.training.gpus or '') > 1 else None,
                       benchmark=True,
                       sync_batchnorm=True,
                       resume_from_checkpoint=args.ckpt.resume_from)

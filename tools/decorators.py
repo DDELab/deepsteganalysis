@@ -1,3 +1,6 @@
+"""
+Gently borrowed from an earlier version of pytorch lightning
+"""
 import numbers
 from typing import Any, Callable, Optional, Union
 
