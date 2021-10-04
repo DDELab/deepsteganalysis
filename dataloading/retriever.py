@@ -10,7 +10,6 @@ import os
 from torch.utils.data import Dataset, DataLoader
 import torch
 import sys
-sys.path.insert(1,'./')
 from tools.jpeg_utils import *
 
 
@@ -25,6 +24,10 @@ def decoder2in_chans(decoder):
     elif decoder == 'rgb':
         return 3
     elif decoder == 'y':
+        return 1
+    elif decoder == 'rjca':
+        return 1
+    elif decoder == 'gray_spatial':
         return 1
     elif decoder == 'onehot':
         return 6
@@ -54,6 +57,17 @@ def y_decode(path):
 def onehot_decode(path):
     return jio.read(path)
 
+def rjca_decode(path):
+    tmp = jio.read(path)
+    image = decompress_structure(tmp)
+    image = image[:,:,:1].astype(np.float32)
+    return image - np.round(image)
+
+def gray_spatial_decode(path):
+    image = cv2.imread(path)
+    image = image[:,:,:1].astype(np.float32)
+    return image
+
 class TrainRetriever(Dataset):
 
     def __init__(self, data_path, kinds, image_names, labels, decoder='y', transforms=None, return_name=False, num_classes=2):
@@ -79,6 +93,10 @@ class TrainRetriever(Dataset):
             image = y_decode(f'{self.data_path}/{kind}/{image_name}')
         elif  self.decoder == 'onehot':
             image = onehot_decode(f'{self.data_path}/{kind}/{image_name}')
+        elif  self.decoder == 'gray_spatial':
+            image = gray_spatial_decode(f'{self.data_path}/{kind}/{image_name}')
+        elif  self.decoder == 'rjca':
+            image = rjca_decode(f'{self.data_path}/{kind}/{image_name}')
         if self.transforms:
             sample = {'image': image}
             sample = self.transforms(**sample)
@@ -126,6 +144,12 @@ class TrainRetrieverPaired(Dataset):
         elif  self.decoder == 'onehot':
             cover = onehot_decode(f'{self.data_path}/{kind[0]}/{image_name}')
             stego = onehot_decode(f'{self.data_path}/{kind[i]}/{image_name}')
+        elif  self.decoder == 'gray_spatial':
+            cover = gray_spatial_decode(f'{self.data_path}/{kind[0]}/{image_name}')
+            stego = gray_spatial_decode(f'{self.data_path}/{kind[i]}/{image_name}')           
+        elif  self.decoder == 'rjca':
+            cover = rjca_decode(f'{self.data_path}/{kind[0]}/{image_name}')
+            stego = rjca_decode(f'{self.data_path}/{kind[i]}/{image_name}')
 
         target_cover = label[0]
         target_stego = label[i]

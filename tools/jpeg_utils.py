@@ -56,8 +56,25 @@ def segmented_stride(M, fun, blk_size=(8,8), overlap=(0,0)):
     B[:,:,:,:] = fun(B)
     return M
 
+def new_jpeg_structure(coef_arrays, quant_tables):
+    # Puts coef_arrays and quant_tables into a new jpegio structure 
+    # Warning, variables will mutate
+    if len(coef_arrays) == 1:
+        comp_info = [jio.ComponentInfo(quant_tbl_no=0)]
+    else:
+        comp_info = [jio.ComponentInfo(quant_tbl_no=0),
+                     jio.ComponentInfo(quant_tbl_no=1),
+                     jio.ComponentInfo(quant_tbl_no=2)]
+
+    tmp = jio.DecompressedJpeg()
+    tmp.coef_arrays = coef_arrays
+    tmp.quant_tables = quant_tables
+    tmp.comp_info = comp_info
+    return tmp
+
 def decompress_structure(S):
     # Decompress DCT coefficients C using quantization table Q
+    # Warning, variables will mutate
     H = S.coef_arrays[0].shape[0]
     W = S.coef_arrays[0].shape[1]
     n = len(S.coef_arrays)
