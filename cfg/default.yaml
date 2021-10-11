@@ -54,7 +54,6 @@ model:
 #         $test_id/
 dataset:
   size: 50
-  file_ext: '.jpg'
   augs_type: 'spatial_d4'
   decoder: 'y'
   data_path: '/media/multi_quality_factor/JPEG_standard/'
@@ -64,14 +63,20 @@ dataset:
   test_id: "TST"
   val_id: "VAL"
   # Do not use wilcard now
-  # If pair constraint - make sure class1 is the cover class
+  # make sure class1 is the cover class
+  # for stego classes you might use cost maps as npy files. If you do so, the stego image will be computed on the fly
   desc:
     class1:
       path: "QF75/COVER"
       label: 0
+      file_ext: '.jpg'
+      file_type: 'image'
+      sca_path: null
+      payload: null
     class2:
       path: "QF75/JUNI_0.4_bpnzac"
       label: 1
-    class3:
-      path: "QF75/UED_0.3_bpnzac"
-      label: 2
+      file_ext: '.jpg'
+      file_type: 'image'
+      sca_path: null
+      payload: null

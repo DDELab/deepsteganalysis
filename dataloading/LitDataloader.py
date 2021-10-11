@@ -15,10 +15,8 @@ from torch.utils.data import DataLoader
 import torch
 
 def cat_collate_fn(data):
-    images, labels = zip(*data)
-    images = torch.cat(images)
-    labels = torch.cat(labels)
-    return images, labels
+    data = zip(*data)
+    return tuple(torch.cat(x) for x in data)
 
 class LitStegoDataModule(pl.LightningDataModule):
 
@@ -35,79 +33,61 @@ class LitStegoDataModule(pl.LightningDataModule):
         # do smth if you need
         pass
 
+    def __add_samples(self, class_key, class_datapath, fold_id, fold):
+        full_temp_path = os.path.join(self.args.dataset.data_path,
+                                      class_datapath,
+                                      fold_id,
+                                      "*" + self.args.dataset.desc[class_key].file_ext)
+        filelist = glob.glob(full_temp_path)
+        
+        for a_file in filelist:
+            _, filename = os.path.split(a_file)
+            self.dataset.append({
+                'kind': os.path.join(class_datapath, fold_id),
+                'image_name': filename,
+                'label': self.args.dataset.desc[class_key].label,
+                'fold': fold,
+                'file_type': self.args.dataset.desc[class_key].file_type,
+                'payload': self.args.dataset.desc[class_key].payload,
+            })
+
+
     def setup(self, stage: Optional[str] = None):
 
-        dataset = []
+        self.dataset = []
 
         for class_key in self.args.dataset.desc.keys():
             class_datapathes = braceexpand(self.args.dataset.desc[class_key].path)
 
             for class_datapath in class_datapathes:
                 # Add training samples
-                full_temp_path = os.path.join(self.args.dataset.data_path,
-                                              class_datapath,
-                                              self.args.dataset.train_id,
-                                              "*" + self.args.dataset.file_ext)
-                filelist = glob.glob(full_temp_path)
-                
-                for a_file in filelist:
-                    _, filename = os.path.split(a_file)
-                    dataset.append({
-                        'kind': os.path.join(class_datapath, self.args.dataset.train_id),
-                        'image_name': filename,
-                        'label': self.args.dataset.desc[class_key].label,
-                        'fold': 1,
-                    })
-
+                self.__add_samples(class_key, class_datapath, self.args.dataset.train_id, 1)
                 # Add validation samples
-                full_temp_path = os.path.join(self.args.dataset.data_path,
-                                              class_datapath,
-                                              self.args.dataset.val_id,
-                                              "*" + self.args.dataset.file_ext)
-                filelist = glob.glob(full_temp_path)
-                for a_file in filelist:
-                    _, filename = os.path.split(a_file)
-                    dataset.append({
-                        'kind': os.path.join(class_datapath, self.args.dataset.val_id),
-                        'image_name': filename,
-                        'label': self.args.dataset.desc[class_key].label,
-                        'fold': 0,
-                    })
-
+                self.__add_samples(class_key, class_datapath, self.args.dataset.val_id, 0)
                 # Add test samples
-                full_temp_path = os.path.join(self.args.dataset.data_path,
-                                              class_datapath,
-                                              self.args.dataset.test_id,
-                                              "*" + self.args.dataset.file_ext)
-                filelist = glob.glob(full_temp_path)
-                for a_file in filelist:
-                    _, filename = os.path.split(a_file)
-                    dataset.append({
-                        'kind': os.path.join(class_datapath, self.args.dataset.test_id),
-                        'image_name': filename,
-                        'label': self.args.dataset.desc[class_key].label,
-                        'fold': -1,
-                    })
+                self.__add_samples(class_key, class_datapath, self.args.dataset.test_id, -1)
 
-        dataset = pd.DataFrame(dataset)
+        self.dataset = pd.DataFrame(self.dataset)
         
         if self.args.dataset.pair_constraint:
             # group by name 
-            dataset = dataset.groupby('image_name').agg(lambda x: x.tolist()).reset_index()
+            self.dataset = self.dataset.groupby('image_name').agg(lambda x: x.tolist()).reset_index()
             # make sure fold is not a list
-            dataset.fold = dataset.fold.apply(lambda x: x[0])
+            self.dataset.fold = self.dataset.fold.apply(lambda x: x[0])
             retriever = TrainRetrieverPaired
         else:
             retriever = TrainRetriever
         
         # Shuffle
-        dataset = dataset.sample(frac=1).reset_index(drop=True)
+        self.dataset = self.dataset.sample(frac=1).reset_index(drop=True)
   
         self.train_dataset = retriever(
             data_path=self.args.dataset.data_path,
-            kinds=dataset[dataset['fold'] != 0].kind.values,
-            image_names=dataset[dataset['fold'] != 0].image_name.values,
-            labels=dataset[dataset['fold'] != 0].label.values,
+            kinds=self.dataset[self.dataset['fold'] == 1].kind.values,
+            image_names=self.dataset[self.dataset['fold'] == 1].image_name.values,
+            labels=self.dataset[self.dataset['fold'] == 1].label.values,
+            file_types=self.dataset[self.dataset['fold'] == 1].file_type.values,
+            payloads=self.dataset[self.dataset['fold'] == 1].payload.values,
             transforms=get_train_transforms(self.args.dataset.augs_type),
             num_classes=self.num_classes,
             decoder=self.args.dataset.decoder
@@ -115,9 +95,11 @@ class LitStegoDataModule(pl.LightningDataModule):
         
         self.valid_dataset = retriever(
             data_path=self.args.dataset.data_path,
-            kinds=dataset[dataset['fold'] == 0].kind.values,
-            image_names=dataset[dataset['fold'] == 0].image_name.values,
-            labels=dataset[dataset['fold'] == 0].label.values,
+            kinds=self.dataset[self.dataset['fold'] == 0].kind.values,
+            image_names=self.dataset[self.dataset['fold'] == 0].image_name.values,
+            labels=self.dataset[self.dataset['fold'] == 0].label.values,
+            file_types=self.dataset[self.dataset['fold'] == 0].file_type.values,
+            payloads=self.dataset[self.dataset['fold'] == 0].payload.values,
             transforms=get_valid_transforms(self.args.dataset.augs_type),
             num_classes=self.num_classes,
             decoder=self.args.dataset.decoder
@@ -125,9 +107,11 @@ class LitStegoDataModule(pl.LightningDataModule):
         
         self.test_dataset = retriever(
             data_path=self.args.dataset.data_path,
-            kinds=dataset[dataset['fold'] == -1].kind.values,
-            image_names=dataset[dataset['fold'] == -1].image_name.values,
-            labels=dataset[dataset['fold'] == -1].label.values,
+            kinds=self.dataset[self.dataset['fold'] == -1].kind.values,
+            image_names=self.dataset[self.dataset['fold'] == -1].image_name.values,
+            labels=self.dataset[self.dataset['fold'] == -1].label.values,
+            file_types=self.dataset[self.dataset['fold'] == -1].file_type.values,
+            payloads=self.dataset[self.dataset['fold'] == -1].payload.values,
             transforms=get_valid_transforms(self.args.dataset.augs_type),
             num_classes=self.num_classes,
             return_name=True,

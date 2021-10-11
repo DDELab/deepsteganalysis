@@ -70,7 +70,8 @@ def gray_spatial_decode(path):
 
 class TrainRetriever(Dataset):
 
-    def __init__(self, data_path, kinds, image_names, labels, decoder='y', transforms=None, return_name=False, num_classes=2):
+    def __init__(self, data_path, kinds, image_names, labels, file_types, payloads,
+                 decoder='y', transforms=None, return_name=False, num_classes=2):
         super().__init__()
         
         self.data_path = data_path
@@ -81,22 +82,26 @@ class TrainRetriever(Dataset):
         self.transforms = transforms
         self.decoder = decoder
         self.num_classes = num_classes
+        self.file_types = file_types
+        self.payloads = payloads
 
     def __getitem__(self, index: int):
         
         kind, image_name, label = self.kinds[index], self.image_names[index], self.labels[index]
+        file_path = f'{self.data_path}/{kind}/{image_name}'
+        
         if  self.decoder == 'ycbcr':
-            image = ycbcr_decode(f'{self.data_path}/{kind}/{image_name}')
+            image = ycbcr_decode(file_path)
         elif  self.decoder == 'rgb':
-            image = rgb_decode(f'{self.data_path}/{kind}/{image_name}')
+            image = rgb_decode(file_path)
         elif  self.decoder == 'y':
-            image = y_decode(f'{self.data_path}/{kind}/{image_name}')
+            image = y_decode(file_path)
         elif  self.decoder == 'onehot':
-            image = onehot_decode(f'{self.data_path}/{kind}/{image_name}')
+            image = onehot_decode(file_path)
         elif  self.decoder == 'gray_spatial':
-            image = gray_spatial_decode(f'{self.data_path}/{kind}/{image_name}')
+            image = gray_spatial_decode(file_path)
         elif  self.decoder == 'rjca':
-            image = rjca_decode(f'{self.data_path}/{kind}/{image_name}')
+            image = rjca_decode(file_path)
         if self.transforms:
             sample = {'image': image}
             sample = self.transforms(**sample)

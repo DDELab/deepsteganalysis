@@ -54,7 +54,6 @@ model:
 #         $test_id/
 dataset:
   size: 50
-  file_ext: '.jpg'
   augs_type: 'spatial_d4'
   decoder: 'y'
   data_path: 'tests/media/BBQF75/'
@@ -69,6 +68,14 @@ dataset:
     class1:
       path: "COVER"
       label: 0
+      file_ext: '.jpg'
+      file_type: 'image'
+      sca_path: null
+      payload: null
     class2:
       path: "JUNIWARD_0.4_bpnzac"
       label: 1
+      file_ext: '.jpg'
+      file_type: 'image'
+      sca_path: null
+      payload: null
