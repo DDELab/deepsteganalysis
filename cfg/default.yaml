@@ -4,14 +4,14 @@ logging:
   project: null
   eid: null
   wandb:
-    activate: True
+    activate: False
     team: "dde"
 
 training:
   seed: 1994
-  gpus: [0, 1]
+  gpus: [0]
   epochs: 40
-  batch_size: 16
+  batch_size: 64
   amp_level: "O1"
   precision: 16
 
@@ -57,8 +57,8 @@ dataset:
   augs_type: 'spatial_d4'
   decoder: 'y'
   data_path: '/media/multi_quality_factor/JPEG_standard/'
-  pair_constraint: False
-  num_workers: 6
+  pair_constraint: True
+  num_workers: 8
   train_id: "TRN"
   test_id: "TST"
   val_id: "VAL"
@@ -73,10 +73,12 @@ dataset:
       file_type: 'image'
       sca_path: null
       payload: null
-    class2:
-      path: "QF75/JUNI_0.4_bpnzac"
+      cover_link: null
+    class3:
+      path: "QF75/JUNIWARD_0.3_bpp_BETAs"
       label: 1
-      file_ext: '.jpg'
-      file_type: 'image'
+      file_ext: '.npz'
+      file_type: 'change_map'
       sca_path: null
       payload: null
+      cover_link: 1

@@ -39,18 +39,19 @@ class LitStegoDataModule(pl.LightningDataModule):
                                       fold_id,
                                       "*" + self.args.dataset.desc[class_key].file_ext)
         filelist = glob.glob(full_temp_path)
-        
+
         for a_file in filelist:
             _, filename = os.path.split(a_file)
             self.dataset.append({
                 'kind': os.path.join(class_datapath, fold_id),
+                'image_name_noext': fold_id+filename.rsplit('.')[0],
                 'image_name': filename,
                 'label': self.args.dataset.desc[class_key].label,
                 'fold': fold,
                 'file_type': self.args.dataset.desc[class_key].file_type,
                 'payload': self.args.dataset.desc[class_key].payload,
+                'file_ext': self.args.dataset.desc[class_key].file_ext,
             })
-
 
     def setup(self, stage: Optional[str] = None):
 
@@ -71,7 +72,7 @@ class LitStegoDataModule(pl.LightningDataModule):
         
         if self.args.dataset.pair_constraint:
             # group by name 
-            self.dataset = self.dataset.groupby('image_name').agg(lambda x: x.tolist()).reset_index()
+            self.dataset = self.dataset.groupby('image_name_noext').agg(lambda x: x.tolist()).reset_index()
             # make sure fold is not a list
             self.dataset.fold = self.dataset.fold.apply(lambda x: x[0])
             retriever = TrainRetrieverPaired
@@ -87,6 +88,7 @@ class LitStegoDataModule(pl.LightningDataModule):
             image_names=self.dataset[self.dataset['fold'] == 1].image_name.values,
             labels=self.dataset[self.dataset['fold'] == 1].label.values,
             file_types=self.dataset[self.dataset['fold'] == 1].file_type.values,
+            file_exts=self.dataset[self.dataset['fold'] == 1].file_ext.values,
             payloads=self.dataset[self.dataset['fold'] == 1].payload.values,
             transforms=get_train_transforms(self.args.dataset.augs_type),
             num_classes=self.num_classes,
@@ -99,6 +101,7 @@ class LitStegoDataModule(pl.LightningDataModule):
             image_names=self.dataset[self.dataset['fold'] == 0].image_name.values,
             labels=self.dataset[self.dataset['fold'] == 0].label.values,
             file_types=self.dataset[self.dataset['fold'] == 0].file_type.values,
+            file_exts=self.dataset[self.dataset['fold'] == 0].file_ext.values,
             payloads=self.dataset[self.dataset['fold'] == 0].payload.values,
             transforms=get_valid_transforms(self.args.dataset.augs_type),
             num_classes=self.num_classes,
@@ -111,6 +114,7 @@ class LitStegoDataModule(pl.LightningDataModule):
             image_names=self.dataset[self.dataset['fold'] == -1].image_name.values,
             labels=self.dataset[self.dataset['fold'] == -1].label.values,
             file_types=self.dataset[self.dataset['fold'] == -1].file_type.values,
+            file_exts=self.dataset[self.dataset['fold'] == -1].file_ext.values,
             payloads=self.dataset[self.dataset['fold'] == -1].payload.values,
             transforms=get_valid_transforms(self.args.dataset.augs_type),
             num_classes=self.num_classes,
