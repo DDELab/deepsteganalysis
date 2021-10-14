@@ -64,4 +64,7 @@ def get_net(model_name, num_classes=2, in_chans=3, pretrained=True, ckpt_path=No
                 state_dict[weight_name] = timm.models.helpers.adapt_input_conv(in_chans, state_dict[weight_name])
         
         net.load_state_dict(state_dict, strict=strict_loading)
+
+        # clean up
+        del state_dict
     return net

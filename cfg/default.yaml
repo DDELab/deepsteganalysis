@@ -9,9 +9,9 @@ logging:
 
 training:
   seed: 1994
-  gpus: [0, 1]
-  epochs: 40
-  batch_size: 16
+  gpus: [0]
+  epochs: 60
+  batch_size: 64
   amp_level: "O1"
   precision: 16
 
@@ -36,7 +36,7 @@ optimizer:
   weight_decay: 1e-2
 
 model:
-  backbone: efficientnet_b2
+  backbone: srnet
   version: test
   # name of surgery function
   surgery: null
@@ -63,20 +63,17 @@ dataset:
   test_id: "TST"
   val_id: "VAL"
   # Do not use wilcard now
-  # make sure class1 is the cover class
-  # for stego classes you might use cost maps as npy files. If you do so, the stego image will be computed on the fly
+  # If pair constraint - make sure class1 is the cover class
   desc:
     class1:
       path: "QF75/COVER"
       label: 0
       file_ext: '.jpg'
       file_type: 'image'
-      sca_path: null
       payload: null
     class2:
       path: "QF75/JUNI_0.4_bpnzac"
       label: 1
       file_ext: '.jpg'
       file_type: 'image'
-      sca_path: null
       payload: null
