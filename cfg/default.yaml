@@ -10,7 +10,7 @@ logging:
 training:
   seed: 1994
   gpus: [0]
-  epochs: 40
+  epochs: 100
   batch_size: 64
   amp_level: "O1"
   precision: 16
@@ -71,14 +71,10 @@ dataset:
       label: 0
       file_ext: '.jpg'
       file_type: 'image'
-      sca_path: null
       payload: null
-      cover_link: null
-    class3:
-      path: "QF75/JUNIWARD_0.3_bpp_BETAs"
+    class2:
+      path: "QF75/JUNI_0.4_bpnzac"
       label: 1
-      file_ext: '.npz'
-      file_type: 'change_map'
-      sca_path: null
+      file_ext: '.jpg'
+      file_type: 'image'
       payload: null
-      cover_link: 1
