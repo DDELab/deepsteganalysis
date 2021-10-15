@@ -78,7 +78,16 @@ class LitStegoDataModule(pl.LightningDataModule):
             retriever = TrainRetrieverPaired
         else:
             retriever = TrainRetriever
-        
+            # Link proto stego imags (costs, betas) to cover images
+            # This relies on entering them in the same order in the dataset desc
+            # This also relies on having the number of proto stegos be a multiple of number of covers
+            # (i.e.) 1 cover per cost or beta
+            len_proto = len(self.dataset.loc[self.dataset.file_type != 'image'])
+            len_covers = len(self.dataset[self.dataset.label==0])
+            assert len_proto % len_covers == 0
+            self.dataset.loc[self.dataset.file_type != 'image', 'cover_image_name'] = self.dataset[self.dataset.label==0].image_name.values.tolist() * (len_proto//len_covers)
+            self.dataset.loc[self.dataset.file_type != 'image', 'cover_kind'] = self.dataset[self.dataset.label==0].kind.values.tolist() * (len_proto//len_covers)
+
         # Shuffle
         self.dataset = self.dataset.sample(frac=1).reset_index(drop=True)
   
@@ -90,6 +99,8 @@ class LitStegoDataModule(pl.LightningDataModule):
             file_types=self.dataset[self.dataset['fold'] == 1].file_type.values,
             file_exts=self.dataset[self.dataset['fold'] == 1].file_ext.values,
             payloads=self.dataset[self.dataset['fold'] == 1].payload.values,
+            cover_kinds=self.dataset[self.dataset['fold'] == 1].cover_kind.values,
+            cover_image_names=self.dataset[self.dataset['fold'] == 1].cover_image_name.values,
             transforms=get_train_transforms(self.args.dataset.augs_type),
             num_classes=self.num_classes,
             decoder=self.args.dataset.decoder
@@ -103,6 +114,8 @@ class LitStegoDataModule(pl.LightningDataModule):
             file_types=self.dataset[self.dataset['fold'] == 0].file_type.values,
             file_exts=self.dataset[self.dataset['fold'] == 0].file_ext.values,
             payloads=self.dataset[self.dataset['fold'] == 0].payload.values,
+            cover_kinds=self.dataset[self.dataset['fold'] == 0].cover_kind.values,
+            cover_image_names=self.dataset[self.dataset['fold'] == 0].cover_image_name.values,
             transforms=get_valid_transforms(self.args.dataset.augs_type),
             num_classes=self.num_classes,
             decoder=self.args.dataset.decoder
@@ -116,6 +129,8 @@ class LitStegoDataModule(pl.LightningDataModule):
             file_types=self.dataset[self.dataset['fold'] == -1].file_type.values,
             file_exts=self.dataset[self.dataset['fold'] == -1].file_ext.values,
             payloads=self.dataset[self.dataset['fold'] == -1].payload.values,
+            cover_kinds=self.dataset[self.dataset['fold'] == -1].cover_kind.values,
+            cover_image_names=self.dataset[self.dataset['fold'] == -1].cover_image_name.values,
             transforms=get_valid_transforms(self.args.dataset.augs_type),
             num_classes=self.num_classes,
             return_name=True,

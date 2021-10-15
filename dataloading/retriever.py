@@ -90,7 +90,8 @@ def change_map_decode(path, cover_path):
 class TrainRetriever(Dataset):
 
     def __init__(self, data_path, kinds, image_names, labels, file_types, file_exts, payloads,
-                 decoder='y', transforms=None, return_name=False, num_classes=2):
+                 cover_kinds, cover_image_names, decoder='y', transforms=None, return_name=False, 
+                 num_classes=2):
         super().__init__()
         
         self.data_path = data_path
@@ -104,22 +105,19 @@ class TrainRetriever(Dataset):
         self.file_types = file_types
         self.payloads = payloads
         self.file_exts = file_exts
-        self.dict_exts = dict(zip(kinds, file_exts))
-        self.cover_kinds = list(set(compress(kinds, labels==0)))
+        self.cover_kinds = cover_kinds
+        self.cover_image_names = cover_image_names
 
     def __getitem__(self, index: int):
         
-        kind, image_name, label, payload, file_type = self.kinds[index], self.image_names[index], self.labels[index], self.payloads[index], self.file_types[index]
+        kind, image_name, label, payload, file_type, cover_kind, cover_image_name = self.kinds[index], self.image_names[index], self.labels[index], self.payloads[index], self.file_types[index], self.cover_kinds[index], self.cover_image_names[index]
         file = f'{self.data_path}/{kind}/{image_name}'
         if file_type == 'cost_map':
-            cover_kind = np.random.choice(self.cover_kinds)
-            cover_name = image_name.split(self.dict_exts[kind])[0]+self.dict_exts[cover_kind]
-            cover_path = f'{self.data_path}/{cover_kind}/{cover_name}'
+            cover_path = f'{self.data_path}/{cover_kind}/{cover_image_name}'
             file = cost_map_decode(file, cover_path, payload)
         if file_type == 'change_map':
             cover_kind = np.random.choice(self.cover_kinds)
-            cover_name = image_name.split(self.dict_exts[kind])[0]+self.dict_exts[cover_kind]
-            cover_path = f'{self.data_path}/{cover_kind}/{cover_name}'
+            cover_path = f'{self.data_path}/{cover_kind}/{cover_image_name}'
             file = change_map_decode(file, cover_path)
         if  self.decoder == 'ycbcr':
             image = ycbcr_decode(file)
@@ -152,7 +150,8 @@ class TrainRetriever(Dataset):
 class TrainRetrieverPaired(Dataset):
 
     def __init__(self, data_path, kinds, image_names, labels, file_types, file_exts, payloads,
-                 decoder='y', transforms=None, return_name=False, num_classes=2):
+                 cover_kinds, cover_image_names, decoder='y', transforms=None, return_name=False,
+                 num_classes=2):
         super().__init__()
         
         self.data_path = data_path
