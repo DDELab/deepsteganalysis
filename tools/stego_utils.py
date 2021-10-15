@@ -1,6 +1,6 @@
 """
 Code kindly borrowed from https://github.com/daniellerch/stegolab
-A python implementation of the matlab code developped by DDE lab
+A python implementation of the matlab code developed by DDE lab
 """
 import numpy as np
 
