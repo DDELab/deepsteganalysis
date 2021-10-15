@@ -119,7 +119,7 @@ class LitModel(pl.LightningModule):
             getattr(self, metric_name).update(y_logits, y)
 
     def test_epoch_end(self, outputs):
-        test_summary = {'ckpt_path': self.args.ckpt.resume_from}
+        test_summary = {'best_ckpt_path': self.trainer.checkpoint_callback.best_model_path}
         for metric_name in self.test_metrics.keys():
             test_summary[metric_name] = getattr(self, metric_name).compute()
             getattr(self, metric_name).reset()
@@ -128,7 +128,7 @@ class LitModel(pl.LightningModule):
         for metric_name in self.test_metrics.keys():
             self.logger[0].experiment.summary[metric_name] = test_summary[metric_name]
         self.logger[0].experiment.log({'test_table': self.test_table})
-        self.logger[0].experiment.summary['ckpt_path'] = test_summary['ckpt_path']
+        self.logger[0].experiment.summary['best_ckpt_path'] = test_summary['best_ckpt_path']
         return test_summary
         
     def configure_optimizers(self):

@@ -4,7 +4,7 @@ logging:
   project: null
   eid: null
   wandb:
-    activate: False
+    activate: True
     team: "dde"
 
 training:
@@ -36,7 +36,7 @@ optimizer:
   weight_decay: 1e-2
 
 model:
-  backbone: efficientnet_b2
+  backbone: srnet
   version: test
   # name of surgery function
   surgery: null
@@ -57,14 +57,13 @@ dataset:
   augs_type: 'spatial_d4'
   decoder: 'y'
   data_path: '/media/multi_quality_factor/JPEG_standard/'
-  pair_constraint: True
-  num_workers: 8
+  pair_constraint: False
+  num_workers: 6
   train_id: "TRN"
   test_id: "TST"
   val_id: "VAL"
   # Do not use wilcard now
-  # make sure class1 is the cover class
-  # for stego classes you might use cost maps as npy files. If you do so, the stego image will be computed on the fly
+  # If pair constraint - make sure class1 is the cover class
   desc:
     class1:
       path: "QF75/COVER"
@@ -78,3 +77,4 @@ dataset:
       file_ext: '.jpg'
       file_type: 'image'
       payload: null
+      

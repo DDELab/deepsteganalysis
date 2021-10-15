@@ -37,12 +37,13 @@ def main(args):
                       flush_logs_every_n_steps=100,
                       accelerator='ddp' if len(args.training.gpus or '') > 1 else None,
                       benchmark=True,
-                      sync_batchnorm=True,
+                      sync_batchnorm=len(args.training.gpus or '') > 1,
                       resume_from_checkpoint=args.ckpt.resume_from)
 
     trainer.logger.log_hyperparams(model.hparams)
 
     trainer.fit(model, datamodule)
+    trainer.test(dataloaders=datamodule, ckpt_path=ckpt_callback.best_model_path)
 
 def run_cli():
     # os.path.join(os.path.expanduser('~')
