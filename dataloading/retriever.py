@@ -116,7 +116,6 @@ class TrainRetriever(Dataset):
             cover_path = f'{self.data_path}/{cover_kind}/{cover_image_name}'
             file = cost_map_decode(file, cover_path, payload)
         if file_type == 'change_map':
-            cover_kind = np.random.choice(self.cover_kinds)
             cover_path = f'{self.data_path}/{cover_kind}/{cover_image_name}'
             file = change_map_decode(file, cover_path)
         if  self.decoder == 'ycbcr':
