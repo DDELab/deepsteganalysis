@@ -170,7 +170,7 @@ class TrainRetrieverPaired(Dataset):
         kind, image_name, label, payload, file_type = self.kinds[index], self.image_names[index], self.labels[index], self.payloads[index], self.file_types[index]
         i = np.random.randint(low=1, high=self.num_classes)
         cover_file = f'{self.data_path}/{kind[0]}/{image_name[0]}'
-        stego_file = f'{self.data_path}/{kind[i]}/{image_name[1]}'
+        stego_file = f'{self.data_path}/{kind[i]}/{image_name[i]}'
 
         if file_type == 'cost_map':
             stego_file = cost_map_decode(stego_file, cover_file, payload[i])

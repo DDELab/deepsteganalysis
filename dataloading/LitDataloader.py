@@ -51,6 +51,8 @@ class LitStegoDataModule(pl.LightningDataModule):
                 'file_type': self.args.dataset.desc[class_key].file_type,
                 'payload': self.args.dataset.desc[class_key].payload,
                 'file_ext': self.args.dataset.desc[class_key].file_ext,
+                'cover_image_name': None,
+                'cover_kind': None
             })
 
     def setup(self, stage: Optional[str] = None):
