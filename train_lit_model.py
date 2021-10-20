@@ -10,6 +10,7 @@ from argparse import ArgumentParser
 import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.utilities.distributed import rank_zero_only
+from pytorch_lightning.utilities.distributed import _get_rank
 
 from LitModel import LitModel
 from dataloading.LitDataloader import LitStegoDataModule
@@ -43,7 +44,7 @@ def main(args):
     trainer.logger.log_hyperparams(model.hparams)
 
     trainer.fit(model, datamodule)
-    trainer.test(dataloaders=datamodule, ckpt_path=ckpt_callback.best_model_path)
+    trainer.test(dataloaders=datamodule, ckpt_path=model.best_ckpt_path)
 
 def run_cli():
     # os.path.join(os.path.expanduser('~')

@@ -1,6 +1,7 @@
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import torch
+import torch.distributed as dist
 import wandb
 import torch.nn.functional as F
 import pytorch_lightning as pl
@@ -99,6 +100,12 @@ class LitModel(pl.LightningModule):
         for metric_name in self.val_metrics.keys():
             self.log(metric_name, getattr(self, metric_name).compute(), on_step=False, on_epoch=True, prog_bar=False, logger=True, sync_dist=True)
             getattr(self, metric_name).reset()
+    
+    def on_fit_end(self):
+        super().on_fit_end()
+        self.best_ckpt_path = [None]*len(self.args.training.gpus)
+        dist.all_gather_object(self.best_ckpt_path, self.trainer.checkpoint_callback.best_model_path)
+        self.best_ckpt_path = self.best_ckpt_path[0]
 
     def on_test_epoch_start(self, *args, **kwargs):
         super().on_test_epoch_start(*args, **kwargs)
