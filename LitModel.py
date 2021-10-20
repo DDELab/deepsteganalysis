@@ -1,3 +1,4 @@
+from typing import List
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import torch
@@ -103,9 +104,13 @@ class LitModel(pl.LightningModule):
     
     def on_fit_end(self):
         super().on_fit_end()
-        self.best_ckpt_path = [None]*len(self.args.training.gpus)
-        dist.all_gather_object(self.best_ckpt_path, self.trainer.checkpoint_callback.best_model_path)
-        self.best_ckpt_path = self.best_ckpt_path[0]
+        #TODO this is ugly
+        if len(self.args.training.gpus or '') > 1:
+            self.best_ckpt_path = [None]*len(self.args.training.gpus)
+            dist.all_gather_object(self.best_ckpt_path, self.trainer.checkpoint_callback.best_model_path)
+            self.best_ckpt_path = self.best_ckpt_path[0]
+        else:
+            self.best_ckpt_path = self.trainer.checkpoint_callback.best_model_path
 
     def on_test_epoch_start(self, *args, **kwargs):
         super().on_test_epoch_start(*args, **kwargs)
