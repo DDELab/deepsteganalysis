@@ -6,6 +6,7 @@ import numpy as np
 import pickle
 import random
 import cv2
+import binascii
 from itertools import compress
 import os
 from torch.utils.data import Dataset, DataLoader
@@ -87,6 +88,20 @@ def change_map_decode(path, cover_path):
     cover.coef_arrays[0] = stego
     return cover
 
+def encode_string(s, max=50):
+    h = binascii.hexlify(s.encode('utf-8'))
+    result = [int(h[i:i+8], 16) for i in range(0, len(h), 8)]
+    return result+[-1]*(max-len(result))
+
+def decode_string(l):
+    result = ''
+    for s in l:
+        if s == -1:
+            break
+        h = hex(s)[2:].encode('ascii')
+        result += binascii.unhexlify(h).decode('utf-8') 
+    return result
+
 class TrainRetriever(Dataset):
 
     def __init__(self, data_path, kinds, image_names, labels, file_types, file_exts, payloads,
@@ -136,7 +151,7 @@ class TrainRetriever(Dataset):
             image = sample['image']
                     
         if self.return_name:
-            return image, label, image_name
+            return image, label, torch.as_tensor(encode_string(image_name))
         return image, label
 
     def __len__(self) -> int:
@@ -205,7 +220,7 @@ class TrainRetrieverPaired(Dataset):
             stego = sample['image2']
 
         if self.return_name:
-            return  torch.stack([cover,stego]), torch.as_tensor([target_cover, target_stego]), torch.as_tensor([image_name, image_name])
+            return  torch.stack([cover,stego]), torch.as_tensor([target_cover, target_stego]), torch.as_tensor([encode_string(image_name[0]), encode_string(image_name[i])])
         return torch.stack([cover,stego]), torch.as_tensor([target_cover, target_stego])
 
     def __len__(self) -> int:

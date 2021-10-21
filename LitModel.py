@@ -12,7 +12,8 @@ import models.surgeries
 from models.models import get_net
 from metrics.roc_metrics import wAUC, PE, MD5
 from torchmetrics.classification.accuracy import Accuracy
-    
+from dataloading.retriever import decode_string    
+
 class LitModel(pl.LightningModule):
     """
     Train a steganalysis model
@@ -124,7 +125,7 @@ class LitModel(pl.LightningModule):
         # 2. Compute loss:
         val_loss = self.loss(y_logits, y)
         for i in range(len(name)):
-            self.test_table.add_data(name[i], y[i], y_logits[i])
+            self.test_table.add_data(decode_string(name[i]), y[i], y_logits[i])
         
         # 3. Compute metrics and log:
         for metric_name in self.test_metrics.keys():

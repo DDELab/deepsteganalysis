@@ -39,6 +39,9 @@ jobs:
       run: |
         pip install -r requirements.txt
         pip install git+https://github.com/dwgoon/jpegio
-    - name: SRNet training test
+    - name: SRNet training test without PC
       run: |
         python train_lit_model.py config=tests/test_config.yaml
+    - name: SRNet training test with PC
+      run: |
+        python train_lit_model.py config=tests/test_config.yaml dataset.pair_constraint=True training.batch_size=4
