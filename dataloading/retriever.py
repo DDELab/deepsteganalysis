@@ -9,6 +9,7 @@ import cv2
 import binascii
 from itertools import compress
 import os
+import dataloading.decoders
 from torch.utils.data import Dataset, DataLoader
 import torch
 import sys
@@ -19,88 +20,6 @@ def onehot(size, target):
     vec = torch.zeros(size, dtype=torch.float32)
     vec[target] = 1.
     return vec
-
-def decoder2in_chans(decoder):
-    if decoder == 'ycbcr':
-        return 3
-    elif decoder == 'rgb':
-        return 3
-    elif decoder == 'y':
-        return 1
-    elif decoder == 'rjca':
-        return 1
-    elif decoder == 'gray_spatial':
-        return 1
-    elif decoder == 'onehot':
-        return 6
-
-def load_or_pass(x, type=jio.decompressedjpeg.DecompressedJpeg, load_fn=jio.read):
-    return x if isinstance(x, type) else load_fn(x)
-
-def ycbcr_decode(path):
-    tmp = load_or_pass(path)
-    image = decompress_structure(tmp)
-    image = image[:,:,:].astype(np.float32)
-    image /= 255.0
-    return image
-
-def rgb_decode(path):
-    tmp = load_or_pass(path)
-    image = decompress_structure(tmp)
-    image = image[:,:,:].astype(np.float32)
-    image = ycbcr2rgb(image).astype(np.float32)
-    image /= 255.0
-    return image
-
-def y_decode(path):
-    tmp = load_or_pass(path)
-    image = decompress_structure(tmp)
-    image = image[:,:,:1].astype(np.float32)
-    image /= 255.0
-    return image
-
-def onehot_decode(path):
-    return load_or_pass(path)
-
-def rjca_decode(path):
-    tmp = load_or_pass(path)
-    image = decompress_structure(tmp)
-    image = image[:,:,:1].astype(np.float32)
-    return image - np.round(image)
-
-def gray_spatial_decode(path):
-    image = load_or_pass(path, np.ndarray, cv2.imread)
-    image = image[:,:,:1].astype(np.float32)
-    return image
-
-def cost_map_decode(path, cover_path, payload):
-    cost_map = np.load(path)
-    cover = jio.read(cover_path)
-    nzac = np.count_nonzero(cover.coef_arrays[0]) - np.count_nonzero(cover.coef_arrays[0][::8,::8])
-    stego = embedding_simulator(cover.coef_arrays[0], cost_map['rho_p1'], cost_map['rho_m1'], nzac*payload)
-    cover.coef_arrays[0] = stego
-    return cover
-
-def change_map_decode(path, cover_path):
-    change_map = np.load(path)
-    cover = jio.read(cover_path)
-    stego = sample_stego_image(cover.coef_arrays[0], change_map['pChangeP1'], change_map['pChangeM1'])
-    cover.coef_arrays[0] = stego
-    return cover
-
-def encode_string(s, max=50):
-    h = binascii.hexlify(s.encode('utf-8'))
-    result = [int(h[i:i+8], 16) for i in range(0, len(h), 8)]
-    return result+[-1]*(max-len(result))
-
-def decode_string(l):
-    result = ''
-    for s in l:
-        if s == -1:
-            break
-        h = hex(s)[2:].encode('ascii')
-        result += binascii.unhexlify(h).decode('utf-8') 
-    return result
 
 class TrainRetriever(Dataset):
 
@@ -122,6 +41,7 @@ class TrainRetriever(Dataset):
         self.file_exts = file_exts
         self.cover_kinds = cover_kinds
         self.cover_image_names = cover_image_names
+        self.decode = getattr(dataloading.decoders, f'{decoder}_decode')    # get fn ptr for decoder
 
     def __getitem__(self, index: int):
         
@@ -129,29 +49,20 @@ class TrainRetriever(Dataset):
         file = f'{self.data_path}/{kind}/{image_name}'
         if file_type == 'cost_map':
             cover_path = f'{self.data_path}/{cover_kind}/{cover_image_name}'
-            file = cost_map_decode(file, cover_path, payload)
+            file = dataloading.decoders.cost_map_decode(file, cover_path, payload)
         if file_type == 'change_map':
             cover_path = f'{self.data_path}/{cover_kind}/{cover_image_name}'
-            file = change_map_decode(file, cover_path)
-        if  self.decoder == 'ycbcr':
-            image = ycbcr_decode(file)
-        elif  self.decoder == 'rgb':
-            image = rgb_decode(file)
-        elif  self.decoder == 'y':
-            image = y_decode(file)
-        elif  self.decoder == 'onehot':
-            image = onehot_decode(file)
-        elif  self.decoder == 'gray_spatial':
-            image = gray_spatial_decode(file)
-        elif  self.decoder == 'rjca':
-            image = rjca_decode(file)
+            file = dataloading.decoders.change_map_decode(file, cover_path)
+
+        image = self.decode(file)
+
         if self.transforms:
             sample = {'image': image}
             sample = self.transforms(**sample)
             image = sample['image']
                     
         if self.return_name:
-            return image, label, torch.as_tensor(encode_string(image_name))
+            return image, label, torch.as_tensor(dataloading.decoders.encode_string(image_name))
         return image, label
 
     def __len__(self) -> int:
@@ -179,6 +90,7 @@ class TrainRetrieverPaired(Dataset):
         self.payloads = payloads
         self.file_types = file_types
         self.file_exts = file_exts
+        self.decode = getattr(dataloading.decoders, f'{decoder}_decode')    # get fn ptr for decoder
 
     def __getitem__(self, index: int):
         
@@ -188,27 +100,12 @@ class TrainRetrieverPaired(Dataset):
         stego_file = f'{self.data_path}/{kind[i]}/{image_name[i]}'
 
         if file_type == 'cost_map':
-            stego_file = cost_map_decode(stego_file, cover_file, payload[i])
+            stego_file = dataloading.decoders.cost_map_decode(stego_file, cover_file, payload[i])
         if file_type == 'change_map':
-            stego_file = change_map_decode(stego_file, cover_file)
-        if  self.decoder == 'ycbcr':
-            cover = ycbcr_decode(cover_file)
-            stego = ycbcr_decode(stego_file)
-        elif  self.decoder == 'rgb':
-            cover = rgb_decode(cover_file)
-            stego = rgb_decode(stego_file)
-        elif  self.decoder == 'y':
-            cover = y_decode(cover_file)
-            stego = y_decode(stego_file)
-        elif  self.decoder == 'onehot':
-            cover = onehot_decode(cover_file)
-            stego = onehot_decode(stego_file)
-        elif  self.decoder == 'gray_spatial':
-            cover = gray_spatial_decode(cover_file)
-            stego = gray_spatial_decode(stego_file)           
-        elif  self.decoder == 'rjca':
-            cover = rjca_decode(cover_file)
-            stego = rjca_decode(stego_file)
+            stego_file = dataloading.decoders.change_map_decode(stego_file, cover_file)
+        
+        cover = self.decode(cover_file)
+        stego = self.decode(stego_file)
 
         target_cover = label[0]
         target_stego = label[i]
@@ -220,7 +117,9 @@ class TrainRetrieverPaired(Dataset):
             stego = sample['image2']
 
         if self.return_name:
-            return  torch.stack([cover,stego]), torch.as_tensor([target_cover, target_stego]), torch.as_tensor([encode_string(image_name[0]), encode_string(image_name[i])])
+            return  torch.stack([cover,stego]), \
+                    torch.as_tensor([target_cover, target_stego]), \
+                    torch.as_tensor([dataloading.decoders.encode_string(image_name[0]), dataloading.decoders.encode_string(image_name[i])])
         return torch.stack([cover,stego]), torch.as_tensor([target_cover, target_stego])
 
     def __len__(self) -> int:

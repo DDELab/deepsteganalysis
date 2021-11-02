@@ -9,7 +9,8 @@ import argparse
 import glob
 
 import pytorch_lightning as pl
-from dataloading.retriever import TrainRetriever, TrainRetrieverPaired, decoder2in_chans
+from dataloading.retriever import TrainRetriever, TrainRetrieverPaired
+from dataloading.decoders import decoder2in_chans
 from dataloading.augmentations import get_train_transforms, get_valid_transforms
 from torch.utils.data import DataLoader
 import torch

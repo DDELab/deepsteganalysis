@@ -12,7 +12,7 @@ import models.surgeries
 from models.models import get_net
 from metrics.roc_metrics import wAUC, PE, MD5
 from torchmetrics.classification.accuracy import Accuracy
-from dataloading.retriever import decode_string    
+from dataloading.decoders import decode_string    
 
 class LitModel(pl.LightningModule):
     """
