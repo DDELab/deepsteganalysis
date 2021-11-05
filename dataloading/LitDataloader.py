@@ -160,7 +160,7 @@ class LitStegoDataModule(pl.LightningDataModule):
                             num_workers=self.args.dataset.num_workers,
                             sampler=self.sampler if self.args.training.balanced else None,
                             collate_fn=cat_collate_fn if self.args.dataset.pair_constraint else None,
-                            shuffle=True)
+                            shuffle=False if self.args.training.balanced else True)
         return loader
 
     def val_dataloader(self):
