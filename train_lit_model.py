@@ -39,6 +39,7 @@ def main(args):
                       accelerator='ddp' if len(args.training.gpus or '') > 1 else None,
                       benchmark=True,
                       sync_batchnorm=len(args.training.gpus or '') > 1,
+                      replace_sampler_ddp=False if args.training.balanced else True,
                       resume_from_checkpoint=args.ckpt.resume_from)
 
     trainer.logger.log_hyperparams(model.hparams)
