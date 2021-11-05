@@ -55,10 +55,10 @@ class LitModel(pl.LightningModule):
         # 3. Loss:
         self.loss_func = F.cross_entropy
 
-    def forward(self, x):
+    def forward(self, x, pp):
         """Forward pass. Returns logits."""
 
-        x = self.net(x)
+        x = self.net(x, pp)
         
         return x
 
@@ -67,8 +67,8 @@ class LitModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         # 1. Forward pass:
-        x, y = batch
-        y_logits = self.forward(x)
+        x, y, pp = batch
+        y_logits = self.forward(x, pp[...,None])
         
         # 2. Compute loss:
         train_loss = self.loss(y_logits, y)
@@ -87,8 +87,12 @@ class LitModel(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         # 1. Forward pass:
-        x, y = batch
-        y_logits = self.forward(x)
+        x, y, pp = batch
+        #print('*******************', x.shape , pp.shape)
+        print(x)
+        y_logits = self.forward(x, pp[...,None])
+
+        print(y_logits)
 
         # 2. Compute loss:
         val_loss = self.loss(y_logits, y)
