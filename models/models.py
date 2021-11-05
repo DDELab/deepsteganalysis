@@ -9,6 +9,7 @@ import numpy as np
 import types
 import torch
 from models.srnet import SRNet
+from models.manifold_srnet import ManifoldSRNet
 from models.onehotconv import OneHotConv
 
 zoo_params = {
@@ -29,6 +30,12 @@ zoo_params = {
         'fc_name': 'fc',
         'conv_stem_name': ['block1.0.conv'],
         'init_op': SRNet
+    },
+
+    'manifold_srnet': {
+        'fc_name': 'fc',
+        'conv_stem_name': ['block1.0.conv'],
+        'init_op': ManifoldSRNet
     },
 
     'onehotconv': {

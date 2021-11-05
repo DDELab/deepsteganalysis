@@ -29,6 +29,7 @@ def main(args):
     trainer = Trainer(logger=loggers,
                       callbacks=[ckpt_callback, lr_logger],
                       gpus=args.training.gpus,
+                      num_sanity_val_steps=0,
                       min_epochs=args.training.epochs,
                       max_epochs=args.training.epochs,
                       precision=args.training.precision,
@@ -39,7 +40,8 @@ def main(args):
                       accelerator='ddp' if len(args.training.gpus or '') > 1 else None,
                       benchmark=True,
                       sync_batchnorm=len(args.training.gpus or '') > 1,
-                      resume_from_checkpoint=args.ckpt.resume_from)
+                      resume_from_checkpoint=args.ckpt.resume_from,
+                      replace_sampler_ddp=False if args.training.balanced else True)
 
     trainer.logger.log_hyperparams(model.hparams)
 

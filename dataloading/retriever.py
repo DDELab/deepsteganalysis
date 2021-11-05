@@ -71,6 +71,7 @@ def rjca_decode(path):
 def gray_spatial_decode(path):
     image = load_or_pass(path, np.ndarray, cv2.imread)
     image = image[:,:,:1].astype(np.float32)
+    image /= 255.0
     return image
 
 def cost_map_decode(path, cover_path, payload):
@@ -187,6 +188,8 @@ class TrainRetrieverPaired(Dataset):
         cover_file = f'{self.data_path}/{kind[0]}/{image_name[0]}'
         stego_file = f'{self.data_path}/{kind[i]}/{image_name[i]}'
 
+        pp = float(kind[i].split('_')[1])
+
         if file_type == 'cost_map':
             stego_file = cost_map_decode(stego_file, cover_file, payload[i])
         if file_type == 'change_map':
@@ -221,7 +224,8 @@ class TrainRetrieverPaired(Dataset):
 
         if self.return_name:
             return  torch.stack([cover,stego]), torch.as_tensor([target_cover, target_stego]), torch.as_tensor([encode_string(image_name[0]), encode_string(image_name[i])])
-        return torch.stack([cover,stego]), torch.as_tensor([target_cover, target_stego])
+        return torch.stack([cover,stego]), torch.as_tensor([target_cover, target_stego]), torch.as_tensor([pp, pp])
+
 
     def __len__(self) -> int:
         return self.image_names.shape[0]

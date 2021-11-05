@@ -1,23 +1,24 @@
 logging:
   freq: 50
   path: LogFiles
-  project: null
+  project: 'natural-covers'
   eid: null
   wandb:
-    activate: True
+    activate: False
     team: "dde"
 
 training:
   seed: 1994
-  gpus: [0]
-  epochs: 100
-  batch_size: 64
+  gpus: [0,1,2,3]
+  epochs: 50
+  batch_size: 8
+  balanced: False
   amp_level: "O1"
   precision: 16
 
 ckpt:
   resume_from: null
-  seed_from: null
+  seed_from: null #'https://github.com/DDELab/deepsteganalysis/releases/download/v0.1/jin_srnet.ckpt'
   load_fc: True
   pretrained: True
 
@@ -36,7 +37,7 @@ optimizer:
   weight_decay: 1e-2
 
 model:
-  backbone: srnet
+  backbone: manifold_srnet
   version: test
   # name of surgery function
   surgery: null
@@ -55,10 +56,10 @@ model:
 dataset:
   size: 50
   augs_type: 'spatial_d4'
-  decoder: 'y'
-  data_path: '/media/multi_quality_factor/JPEG_standard/'
-  pair_constraint: False
-  num_workers: 6
+  decoder: 'gray_spatial'
+  data_path: '/media/NS/MonoBaseRealizationsISO1000Gamma256x256/realization_1/0_0/'
+  pair_constraint: True
+  num_workers: 8
   train_id: "TRN"
   test_id: "TST"
   val_id: "VAL"
@@ -66,15 +67,15 @@ dataset:
   # If pair constraint - make sure class1 is the cover class
   desc:
     class1:
-      path: "QF75/COVER"
+      path: "COVER"
       label: 0
-      file_ext: '.jpg'
+      file_ext: '.pgm'
       file_type: 'image'
       payload: null
     class2:
-      path: "QF75/JUNI_0.4_bpnzac"
+      path: "HILL2_{1.1,1,0.9}_bpp" #"HILL2_{1.1,1,0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2,0.1,0.05}_bpp"
       label: 1
-      file_ext: '.jpg'
+      file_ext: '.pgm'
       file_type: 'image'
       payload: null
       
