@@ -2,6 +2,7 @@ import os
 import sys
 import random
 import pandas as pd
+import numpy as np
 from typing import Optional, Generator, Union, IO, Dict, Callable
 from pathlib import Path
 from braceexpand import braceexpand
@@ -13,6 +14,8 @@ from dataloading.retriever import TrainRetriever, TrainRetrieverPaired
 from dataloading.decoders import decoder2in_chans
 from dataloading.augmentations import get_train_transforms, get_valid_transforms
 from torch.utils.data import DataLoader
+from torch.utils.data.sampler import WeightedRandomSampler
+from dataloading.samplers import DistributedProxySampler
 import torch
 
 def cat_collate_fn(data):
@@ -93,6 +96,16 @@ class LitStegoDataModule(pl.LightningDataModule):
 
         # Shuffle
         self.dataset = self.dataset.sample(frac=1).reset_index(drop=True)
+
+        # make sampler for balanced training
+        if self.args.training.balanced:
+            assert self.args.dataset.pair_constraint == False, 'pair constraint is always balanced, set it to False or null'
+            count = self.dataset.loc[self.dataset.fold == 1].groupby(['label']).count()['image_name'].to_dict()
+            balance_weight = np.array([1./count[k] for k in self.dataset.loc[self.dataset.fold == 1, 'label']])
+            balance_weight = torch.from_numpy(balance_weight)
+            self.sampler = WeightedRandomSampler(balance_weight.type('torch.DoubleTensor'), len(balance_weight))
+            if len(self.args.training.gpus or '') > 1:
+                self.sampler = DistributedProxySampler(self.sampler)
   
         self.train_dataset = retriever(
             data_path=self.args.dataset.data_path,
@@ -145,6 +158,7 @@ class LitStegoDataModule(pl.LightningDataModule):
                             drop_last=True,
                             batch_size=self.args.training.batch_size,
                             num_workers=self.args.dataset.num_workers,
+                            sampler=self.sampler if self.args.training.balanced else None,
                             collate_fn=cat_collate_fn if self.args.dataset.pair_constraint else None,
                             shuffle=True)
         return loader
