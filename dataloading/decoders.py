@@ -76,6 +76,7 @@ def rjca_decode(path):
 def gray_spatial_decode(path):
     image = load_or_pass(path, np.ndarray, cv2.imread)
     image = image[:,:,:1].astype(np.float32)
+    image /= 255.0
     return image
 
 def cost_map_decode(path, cover_path, payload):
