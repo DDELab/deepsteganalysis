@@ -47,7 +47,7 @@ class LitStegoDataModule(pl.LightningDataModule):
             _, filename = os.path.split(a_file)
             self.dataset.append({
                 'kind': os.path.join(class_datapath, fold_id),
-                'image_name_noext': fold_id+filename.rsplit('.')[0],
+                'image_name_noext': class_datapath.split('/')[0]+fold_id+filename.rsplit('.')[0],
                 'image_name': filename,
                 'label': self.args.dataset.desc[class_key].label,
                 'fold': fold,

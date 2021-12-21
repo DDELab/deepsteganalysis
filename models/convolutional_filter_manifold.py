@@ -3,10 +3,7 @@ import torch.nn.functional
 
 
 class ConvolutionalFilterManifold(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, 
-                 dilation=1, padding=0, transposed=False, bias=True, manifold_features=32, 
-                 activation=torch.nn.LeakyReLU, manifold_bias=True):
-        
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, dilation=1, padding=0, transposed=False, bias=True, manifold_channels=32, activation=torch.nn.LeakyReLU, manifold_bias=True):
         super(ConvolutionalFilterManifold, self).__init__()
 
         self.in_channels = in_channels
@@ -17,24 +14,17 @@ class ConvolutionalFilterManifold(torch.nn.Module):
         self.dilation = dilation
         self.padding = padding
 
-        #self.manifold = torch.nn.Sequential(
-        #    torch.nn.Conv2d(in_channels=1, out_channels=manifold_channels, kernel_size=8, bias=manifold_bias),
-        #    activation(),
-        #    torch.nn.Conv2d(in_channels=manifold_channels, out_channels=manifold_channels, kernel_size=1, bias=manifold_bias),
-        #    activation()
-        #)
-
         self.manifold = torch.nn.Sequential(
-            torch.nn.Linear(in_features=1, out_features=manifold_features//2, bias=manifold_bias),
+            torch.nn.Conv2d(in_channels=1, out_channels=manifold_channels, kernel_size=8, bias=manifold_bias),
             activation(),
-            torch.nn.Linear(in_features=manifold_features//2, out_features=manifold_features, bias=manifold_bias),
+            torch.nn.Conv2d(in_channels=manifold_channels, out_channels=manifold_channels, kernel_size=1, bias=manifold_bias),
             activation()
         )
 
-        self.weight_transform = torch.nn.Linear(in_features=manifold_features, out_features=out_channels*in_channels*self.kernel_size*self.kernel_size, bias=manifold_bias)
+        self.weight_transform = torch.nn.ConvTranspose2d(in_channels=manifold_channels, out_channels=out_channels * in_channels, kernel_size=self.kernel_size, bias=manifold_bias)
 
         if bias:
-            self.bias_transfrom = torch.nn.Linear(in_features=manifold_features, out_features=out_channels, bias=manifold_bias)
+            self.bias_transfrom = torch.nn.Conv2d(in_channels=manifold_channels, out_channels=out_channels, kernel_size=1, bias=manifold_bias)
         else:
             self.bias_transfrom = None
 

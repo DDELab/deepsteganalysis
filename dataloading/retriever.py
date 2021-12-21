@@ -54,10 +54,12 @@ def rgb_decode(path):
 
 def y_decode(path):
     tmp = load_or_pass(path)
+    q = np.copy(tmp.quant_tables[0])
+    q = q.astype(np.float32)
     image = decompress_structure(tmp)
     image = image[:,:,:1].astype(np.float32)
     image /= 255.0
-    return image
+    return image, q[None, ...]/100.0
 
 def onehot_decode(path):
     return load_or_pass(path)
@@ -188,8 +190,6 @@ class TrainRetrieverPaired(Dataset):
         cover_file = f'{self.data_path}/{kind[0]}/{image_name[0]}'
         stego_file = f'{self.data_path}/{kind[i]}/{image_name[i]}'
 
-        pp = float(kind[i].split('_')[1])
-
         if file_type == 'cost_map':
             stego_file = cost_map_decode(stego_file, cover_file, payload[i])
         if file_type == 'change_map':
@@ -201,8 +201,8 @@ class TrainRetrieverPaired(Dataset):
             cover = rgb_decode(cover_file)
             stego = rgb_decode(stego_file)
         elif  self.decoder == 'y':
-            cover = y_decode(cover_file)
-            stego = y_decode(stego_file)
+            cover, qc = y_decode(cover_file)
+            stego, qs = y_decode(stego_file)
         elif  self.decoder == 'onehot':
             cover = onehot_decode(cover_file)
             stego = onehot_decode(stego_file)
@@ -224,7 +224,7 @@ class TrainRetrieverPaired(Dataset):
 
         if self.return_name:
             return  torch.stack([cover,stego]), torch.as_tensor([target_cover, target_stego]), torch.as_tensor([encode_string(image_name[0]), encode_string(image_name[i])])
-        return torch.stack([cover,stego]), torch.as_tensor([target_cover, target_stego]), torch.as_tensor([pp, pp])
+        return torch.stack([cover,stego]), torch.as_tensor([target_cover, target_stego]), torch.as_tensor([qc, qs])
 
 
     def __len__(self) -> int:

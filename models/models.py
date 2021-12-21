@@ -58,17 +58,17 @@ def get_net(model_name, num_classes=2, in_chans=3, pretrained=True, ckpt_path=No
         state_dict = {k.split('net.')[1]: v for k, v in state_dict.items()}
 
         # Check FC compatibility
-        out_fc, _ = state_dict[zoo_params[model_name]['fc_name'] + '.weight'].shape
-        if out_fc != num_classes:
-            del state_dict[zoo_params[model_name]['fc_name'] + '.weight']
-            del state_dict[zoo_params[model_name]['fc_name'] + '.bias']
-
-        # Check first convs
-        for conv_stem_name in zoo_params[model_name]['conv_stem_name']:
-            weight_name =  conv_stem_name + '.weight'
-            _,in_conv,_,_ = state_dict[weight_name].shape
-            if in_conv != in_chans:
-                state_dict[weight_name] = timm.models.helpers.adapt_input_conv(in_chans, state_dict[weight_name])
+        #out_fc, _ = state_dict[zoo_params[model_name]['fc_name'] + '.weight'].shape
+        #if out_fc != num_classes:
+        #    del state_dict[zoo_params[model_name]['fc_name'] + '.weight']
+        #    del state_dict[zoo_params[model_name]['fc_name'] + '.bias']
+#
+        ## Check first convs
+        #for conv_stem_name in zoo_params[model_name]['conv_stem_name']:
+        #    weight_name =  conv_stem_name + '.weight'
+        #    _,in_conv,_,_ = state_dict[weight_name].shape
+        #    if in_conv != in_chans:
+        #        state_dict[weight_name] = timm.models.helpers.adapt_input_conv(in_chans, state_dict[weight_name])
 
         net.load_state_dict(state_dict, strict=strict_loading)
 
