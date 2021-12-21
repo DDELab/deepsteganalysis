@@ -68,7 +68,7 @@ class LitModel(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         # 1. Forward pass:
         x, y, pp = batch
-        y_logits = self.forward(x, pp[...,None])
+        y_logits = self.forward(x)
         
         # 2. Compute loss:
         train_loss = self.loss(y_logits, y)
@@ -89,10 +89,7 @@ class LitModel(pl.LightningModule):
         # 1. Forward pass:
         x, y, pp = batch
         #print('*******************', x.shape , pp.shape)
-        print(x)
-        y_logits = self.forward(x, pp[...,None])
-
-        print(y_logits)
+        y_logits = self.forward(x, pp)
 
         # 2. Compute loss:
         val_loss = self.loss(y_logits, y)
