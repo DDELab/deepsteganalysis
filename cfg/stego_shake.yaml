@@ -1,0 +1,79 @@
+logging:
+  freq: 50
+  path: LogFiles
+  project: 'stego_shake'
+  eid: null
+  wandb:
+    activate: True
+    team: "dde"
+
+training:
+  seed: 1994
+  gpus: [2]
+  epochs: 100
+  batch_size: 64
+  amp_level: "O1"
+  precision: 16
+
+ckpt:
+  resume_from: null 
+  seed_from: 'https://github.com/DDELab/deepsteganalysis/releases/download/v0.1/jin_srnet.ckpt'
+  load_fc: True
+  pretrained: True
+
+optimizer:
+  # do not decay batch norm and bias and FC
+  decay_not_bias_norm: 0
+  # initial learning rate
+  lr: 1e-3
+  # eps for adaptive optimizers
+  eps: 1e-4
+  # Name of LR scheduler
+  lr_scheduler_name: 'onecycle'
+  # Name of optimizer
+  name: 'adamw'
+  # Optimizer weight decay
+  weight_decay: 1e-2
+
+model:
+  backbone: srnet
+  version: test
+  # name of surgery function
+  surgery: null
+
+# Dataset should comply with a following directory hierarchy 
+# $data_path/
+#     $desc.class1/
+#         $train_id/
+#         $val_id/
+#         $test_id/
+#     ...
+#     $desc.classN/
+#         $train_id/
+#         $val_id/
+#         $test_id/
+dataset:
+  size: 50
+  augs_type: 'spatial_d4'
+  decoder: 'y'
+  data_path: /media/shakeSI/QF80/
+  pair_constraint: False
+  num_workers: 6
+  train_id: "TRN"
+  test_id: "TST"
+  val_id: "VAL"
+  # Do not use wilcard now
+  # If pair constraint - make sure class1 is the cover class
+  desc:
+    class1:
+      path: JUNIWARD_shake_0_bpnzac
+      label: 0
+      file_ext: '.jpg'
+      file_type: 'image'
+      payload: null
+    class2:
+      path: JUNIWARD_SI_0.4_bpnzac
+      label: 1
+      file_ext: '.jpg'
+      file_type: 'image'
+      payload: null

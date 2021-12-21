@@ -1,0 +1,81 @@
+logging:
+  freq: 50
+  path: LogFiles
+  project: 'manifoldnets'
+  eid: null
+  wandb:
+    activate: True
+    team: "dde"
+
+training:
+  seed: 1994
+  gpus: [0,1,2]
+  epochs: 50
+  batch_size: 8
+  balanced: False
+  amp_level: "O1"
+  precision: 16
+
+ckpt:
+  resume_from: null
+  seed_from: '/home/yyousfi1/LogFiles/manifoldnets/ds_4d146b96/manifold_srnet/square-exposure-4/checkpoints/last.ckpt'
+  load_fc: True
+  pretrained: True
+
+optimizer:
+  # do not decay batch norm and bias and FC
+  decay_not_bias_norm: 0
+  # initial learning rate
+  lr: 1e-3
+  # eps for adaptive optimizers
+  eps: 1e-6
+  # Name of LR scheduler
+  lr_scheduler_name: 'cos'
+  # Name of optimizer
+  name: 'adamw'
+  # Optimizer weight decay
+  weight_decay: 1e-4
+
+model:
+  backbone: manifold_srnet
+  version: test
+  # name of surgery function
+  surgery: null
+
+# Dataset should comply with a following directory hierarchy 
+# $data_path/
+#     $desc.class1/
+#         $train_id/
+#         $val_id/
+#         $test_id/
+#     ...
+#     $desc.classN/
+#         $train_id/
+#         $val_id/
+#         $test_id/
+dataset:
+  size: 50
+  augs_type: 'spatial_d4'
+  decoder: 'y'
+  data_path: '/media/multi_quality_factor/JPEG_standard/'
+  pair_constraint: True
+  num_workers: 8
+  train_id: "TRN"
+  test_id: "TST"
+  val_id: "VAL"
+  # Do not use wilcard now
+  # If pair constraint - make sure class1 is the cover class
+  desc:
+    class1:
+      path: "QF{75,80,85,90}/COVER"
+      label: 0
+      file_ext: '.jpg'
+      file_type: 'image'
+      payload: null
+    class2:
+      path: "QF{75,80,85,90}/JUNI_0.6_bpnzac"
+      label: 1
+      file_ext: '.jpg'
+      file_type: 'image'
+      payload: null
+      
