@@ -69,6 +69,10 @@ def setup_callbacks_loggers(args):
     tb_dir = os.path.join(log_path, "tensorboard")
     if _get_rank() == 0:
         os.makedirs(tb_dir, exist_ok=True)
+        ## TODO: this is a bit hacky, but otherwise old param file will not be
+        ## overwritten by Tensorboard logger
+        if os.path.isfile(os.path.join(tb_dir, 'hparams.yaml')):
+            os.remove(os.path.join(tb_dir, 'hparams.yaml'))
         dump_data_desc(args, os.path.join(args.logging.path, args.logging.project, data_hash))
 
     wandb_logger = WandbLogger(project=args.logging.project,
