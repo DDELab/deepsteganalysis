@@ -10,10 +10,10 @@ from tools.jpeg_utils import *
 from tools.stego_utils import *
 
 
-    
+
 def load_or_pass(x, type=jio.decompressedjpeg.DecompressedJpeg, load_fn=jio.read):
     return x if isinstance(x, type) else load_fn(x)
-    
+
 def encode_string(s, max=50):
     h = binascii.hexlify(s.encode('utf-8'))
     result = [int(h[i:i+8], 16) for i in range(0, len(h), 8)]
@@ -25,7 +25,7 @@ def decode_string(l):
         if s == -1:
             break
         h = hex(s)[2:].encode('ascii')
-        result += binascii.unhexlify(h).decode('utf-8') 
+        result += binascii.unhexlify(h).decode('utf-8')
     return result
 
 def decoder2in_chans(decoder):
@@ -41,7 +41,7 @@ def decoder2in_chans(decoder):
         return 1
     elif decoder == 'onehot':
         return 6
-    
+
 def ycbcr_decode(path):
     tmp = load_or_pass(path)
     image = decompress_structure(tmp)
@@ -76,6 +76,7 @@ def rjca_decode(path):
 def gray_spatial_decode(path):
     image = load_or_pass(path, np.ndarray, cv2.imread)
     image = image[:,:,:1].astype(np.float32)
+    image /= 255.0
     return image
 
 def cost_map_decode(path, cover_path, payload):
