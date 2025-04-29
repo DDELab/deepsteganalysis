@@ -15,7 +15,7 @@ training:
   gpus: [0]
   epochs: 10
   batch_size: 64
-  precision: 16
+  precision: '16-mixed'
 
 ckpt:
   resume_from: null
