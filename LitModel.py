@@ -1,20 +1,20 @@
 from typing import List
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-import torch
 import torch.distributed as dist
-import wandb
 import torch.nn.functional as F
-import pytorch_lightning as pl
+from torcheval.metrics import MulticlassAccuracy
+from lightning import LightningModule
+import wandb
+
 from optim.optimizers import get_optimizer
 from optim.schedulers import get_lr_scheduler
 import models.surgeries
 from models.models import get_net
 from metrics.roc_metrics import wAUC, PE, MD5
-from torchmetrics.classification.accuracy import Accuracy
 from dataloading.decoders import decode_string    
 
-class LitModel(pl.LightningModule):
+class LitModel(LightningModule):
     """
     Train a steganalysis model
     """
@@ -27,8 +27,8 @@ class LitModel(pl.LightningModule):
         self.save_hyperparameters(self.args)
         
         self.train_metrics = {'train/PE': PE()}
-        self.val_metrics = {'val/acc': Accuracy(), 'val/wAUC': wAUC(), 'val/PE': PE(), 'val/MD5': MD5()}
-        self.test_metrics = {'test/acc': Accuracy(), 'test/wAUC': wAUC(), 'test/PE': PE(), 'test/MD5': MD5()}
+        self.val_metrics = {'val/acc': MulticlassAccuracy(num_classes=2), 'val/wAUC': wAUC(), 'val/PE': PE(), 'val/MD5': MD5()}
+        self.test_metrics = {'test/acc': MulticlassAccuracy(num_classes=2), 'test/wAUC': wAUC(), 'test/PE': PE(), 'test/MD5': MD5()}
         
         self.__set_attributes(self.train_metrics)
         self.__set_attributes(self.val_metrics)
@@ -74,13 +74,14 @@ class LitModel(pl.LightningModule):
         train_loss = self.loss(y_logits, y)
             
         # 3. Compute metrics and log:
-        self.log("train_loss", train_loss, on_step=True, on_epoch=False,  prog_bar=True, logger=False, sync_dist=False)
+        self.log("train/loss", train_loss, on_step=True, on_epoch=False,  prog_bar=True, logger=False, sync_dist=False)
         for metric_name in self.train_metrics.keys():
-            self.log(metric_name, getattr(self, metric_name)(y_logits, y), on_step=True, on_epoch=False, prog_bar=True, logger=False, sync_dist=False)
+            getattr(self, metric_name).update(y_logits, y)
+            self.log(metric_name, getattr(self, metric_name).compute(), on_step=True, on_epoch=False, prog_bar=True, logger=False, sync_dist=False)
 
         return train_loss
 
-    def training_epoch_end(self, outputs):
+    def on_train_epoch_end(self):
         for metric_name in self.train_metrics.keys():
             self.log(metric_name, getattr(self, metric_name).compute(), on_step=False, on_epoch=True, prog_bar=False, logger=True, sync_dist=True)
             getattr(self, metric_name).reset()
@@ -94,11 +95,11 @@ class LitModel(pl.LightningModule):
         val_loss = self.loss(y_logits, y)
         
         # 3. Compute metrics and log:
-        self.log('val_loss', val_loss, on_step=True, on_epoch=False,  prog_bar=False, logger=False, sync_dist=False)
+        self.log('val/loss', val_loss, on_step=True, on_epoch=False,  prog_bar=False, logger=False, sync_dist=False)
         for metric_name in self.val_metrics.keys():
             getattr(self, metric_name).update(y_logits, y)
 
-    def validation_epoch_end(self, outputs):
+    def on_validation_epoch_end(self):
         for metric_name in self.val_metrics.keys():
             self.log(metric_name, getattr(self, metric_name).compute(), on_step=False, on_epoch=True, prog_bar=False, logger=True, sync_dist=True)
             getattr(self, metric_name).reset()
@@ -115,7 +116,7 @@ class LitModel(pl.LightningModule):
 
     def on_test_epoch_start(self, *args, **kwargs):
         super().on_test_epoch_start(*args, **kwargs)
-        self.test_table = wandb.Table(columns=['name', 'label', 'preds'])
+        self.test_table = wandb.Table(columns=['name', 'label'] + ['preds' + str(i) for i in range(self.num_classes)])
 
     def test_step(self, batch, batch_idx):
         # 1. Forward pass:
@@ -123,15 +124,15 @@ class LitModel(pl.LightningModule):
         y_logits = self.forward(x)
 
         # 2. Compute loss:
-        val_loss = self.loss(y_logits, y)
+        tst_loss = self.loss(y_logits, y)
         for i in range(len(name)):
-            self.test_table.add_data(decode_string(name[i]), y[i], y_logits[i])
+            self.test_table.add_data(decode_string(name[i]), y[i], *y_logits[i])
         
         # 3. Compute metrics and log:
         for metric_name in self.test_metrics.keys():
             getattr(self, metric_name).update(y_logits, y)
 
-    def test_epoch_end(self, outputs):
+    def on_test_epoch_end(self):
         test_summary = {'best_ckpt_path': self.trainer.checkpoint_callback.best_model_path}
         for metric_name in self.test_metrics.keys():
             test_summary[metric_name] = getattr(self, metric_name).compute()
@@ -139,9 +140,9 @@ class LitModel(pl.LightningModule):
         if self.global_rank > 0:
             return
         for metric_name in self.test_metrics.keys():
-            self.logger[0].experiment.summary[metric_name] = test_summary[metric_name]
-        self.logger[0].experiment.log({'test_table': self.test_table})
-        self.logger[0].experiment.summary['best_ckpt_path'] = test_summary['best_ckpt_path']
+            self.logger.experiment.summary[metric_name] = test_summary[metric_name]
+        self.logger.experiment.log({'test_table': self.test_table})
+        self.logger.experiment.summary['best_ckpt_path'] = test_summary['best_ckpt_path']
         return test_summary
         
     def configure_optimizers(self):

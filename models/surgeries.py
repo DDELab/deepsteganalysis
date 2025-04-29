@@ -10,7 +10,6 @@ from functools import partial
 from torch import nn
 import timm
 import types
-import torch
 from models.models import zoo_params
     
 def nostride(net):

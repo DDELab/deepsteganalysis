@@ -5,11 +5,10 @@ import numpy as np
 import binascii
 import cv2
 from itertools import compress
+
 from torch.utils.data import Dataset, DataLoader
 from tools.jpeg_utils import *
 from tools.stego_utils import *
-
-
 
 def load_or_pass(x, type=jio.decompressedjpeg.DecompressedJpeg, load_fn=jio.read):
     return x if isinstance(x, type) else load_fn(x)

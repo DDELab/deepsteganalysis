@@ -10,8 +10,11 @@ import torch
 from tools.decorators import _numpy_metric_conversion
 from tools.numpy_utils import check_nans
 from torchmetrics.utilities.data import dim_zero_cat
-from torchmetrics.classification.auc import AUC
-from torchmetrics.functional.classification.auc import _auc_update
+from torcheval.metrics import AUC
+
+@_numpy_metric_conversion
+def roc_auc_score_np(x, y):
+    return roc_auc_score(x, y)
 
 @_numpy_metric_conversion
 def wauc(y_true, y_pred):
@@ -62,26 +65,39 @@ class wAUC(AUC):
     def update(self, preds: torch.Tensor, target: torch.Tensor) -> None:  # type: ignore
         """Update state with predictions and targets.
         """
-        preds = 1 - F.softmax(preds.double(), dim=1)[:,0]
+        #preds = 1 - F.softmax(preds.double(), dim=1)[:,0]
         target = torch.clip(target, min=0, max=1)
-        x, y = _auc_update(preds, target)
-        self.x.append(x)
-        self.y.append(y)
+        self.x.append(preds[:,1])
+        self.y.append(target)
     def compute(self):
         """Computes MD5 based on inputs passed in to ``update`` previously."""
         x = dim_zero_cat(self.x)
         y = dim_zero_cat(self.y)
         return wauc(y, x)
 
+class AUC(AUC):
+    def update(self, preds: torch.Tensor, target: torch.Tensor) -> None:  # type: ignore
+        """Update state with predictions and targets.
+        """
+        #preds = 1 - F.softmax(preds.double(), dim=1)[:,0]
+        target = torch.clip(target, min=0, max=1)
+        self.x.append(preds[:,1])
+        self.y.append(target)
+    def compute(self):
+        """Computes MD5 based on inputs passed in to ``update`` previously."""
+        x = dim_zero_cat(self.x)
+        y = dim_zero_cat(self.y)
+        return roc_auc_score_np(y, x)
+
 class MD5(AUC):
     def update(self, preds: torch.Tensor, target: torch.Tensor) -> None:  # type: ignore
         """Update state with predictions and targets.
         """
-        preds = 1 - F.softmax(preds.double(), dim=1)[:,0]
+        #preds = 1 - F.softmax(preds.double(), dim=1)[:,0]
         target = torch.clip(target, min=0, max=1)
-        x, y = _auc_update(preds, target)
-        self.x.append(x)
-        self.y.append(y)
+        #self.x.append(preds)
+        self.x.append(preds[:,1])
+        self.y.append(target)
     def compute(self):
         """Computes MD5 based on inputs passed in to ``update`` previously."""
         x = dim_zero_cat(self.x)
@@ -92,11 +108,12 @@ class PE(AUC):
     def update(self, preds: torch.Tensor, target: torch.Tensor) -> None:  # type: ignore
         """Update state with predictions and targets.
         """
-        preds = 1 - F.softmax(preds.double(), dim=1)[:,0]
+        #preds = 1 - F.softmax(preds.double(), dim=1)[:,0]
         target = torch.clip(target, min=0, max=1)
-        x, y = _auc_update(preds, target)
-        self.x.append(x)
-        self.y.append(y)
+        #self.x.append(preds)
+        self.x.append(preds[:,1])
+        self.y.append(target)
+
     def compute(self):
         """Computes PE based on inputs passed in to ``update`` previously."""
         x = dim_zero_cat(self.x)

@@ -2,7 +2,7 @@ logging:
   freq: 50
   path: LogFiles
   project: 'test'
-  eid: 'test_run_v14'
+  eid: 'test_run_csv_v2'
   wandb:
     activate: True
     team: "dde"
@@ -13,13 +13,12 @@ logging:
 training:
   seed: 1994
   gpus: [0]
-  epochs: 10
+  epochs: 100
   batch_size: 64
   precision: 16
 
 ckpt:
   resume_from: null
-  #resume_from: "/home/ekaziak1/LogFiles/test/ds_708c46ca/srnet/test_run_v9/checkpoints/last.ckpt"
   seed_from: 'https://github.com/DDELab/deepsteganalysis/releases/download/v0.1/jin_srnet.ckpt'
   load_fc: True
   pretrained: True
@@ -44,40 +43,15 @@ model:
   # name of surgery function
   surgery: null
 
-# Dataset should comply with a following directory hierarchy
-# $data_path/
-#     $desc.class1/
-#         $train_id/
-#         $val_id/
-#         $test_id/
-#     ...
-#     $desc.classN/
-#         $train_id/
-#         $val_id/
-#         $test_id/
+## csv should contain label, subset identifier
 dataset:
   size: 50
   augs_type: 'spatial_d4'
   decoder: 'gray_spatial'
   data_path: '/mnt/hdd/bossbows2/spatial/'
-  pair_constraint: False
-  num_workers: 12
+  num_workers: 6
   train_id: "TRN"
   test_id: "TST"
   val_id: "VAL"
-  # Do not use wilcard now
-  # If pair constraint - make sure class1 is the cover class
-  desc:
-    class1:
-      path: "cover/"
-      label: 0
-      file_ext: '.pgm'
-      file_type: 'image'
-      payload: null
-    class2:
-      path: "SUNI/0.4/"
-      label: 1
-      file_ext: '.pgm'
-      file_type: 'image'
-      payload: null
-
+  classes: 2
+  desc: '/mnt/hdd/bossbows2/spatial/database.csv'

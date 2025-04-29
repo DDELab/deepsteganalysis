@@ -1,10 +1,7 @@
 import numpy as np
 import jpegio as jio
-from tqdm import tqdm
-import os
 from scipy import fftpack
 from numpy.lib.stride_tricks import as_strided
-from collections import defaultdict 
 import torch
 
 quantization_dict = dict()
@@ -72,12 +69,16 @@ def new_jpeg_structure(coef_arrays, quant_tables):
     tmp.comp_info = comp_info
     return tmp
 
-def decompress_structure(S):
+## grayscale parameter ignores Cb, Cr channels
+## in case of 420 subsampling, Cb and Cr are half size of Y
+def decompress_structure(S, grayscale=True):
     # Decompress DCT coefficients C using quantization table Q
     # Warning, variables will mutate
     H = S.coef_arrays[0].shape[0]
     W = S.coef_arrays[0].shape[1]
     n = len(S.coef_arrays)
+    if grayscale:
+        n = 1
     assert H % 8 == 0, 'Wrong image size'
     assert W % 8 == 0, 'Wrong image size'
     I = np.zeros((H,W,n),dtype=np.float64) # Returns Y, Cb and Cr

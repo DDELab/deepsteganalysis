@@ -3,47 +3,35 @@ Runs a model on a single node across multiple gpus.
 """
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-import os
-from pathlib import Path
-from argparse import ArgumentParser
 
-import torch
-from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.utilities.distributed import rank_zero_only
-from pytorch_lightning.utilities.distributed import _get_rank
+from lightning import Trainer, seed_everything
 
 from LitModel import LitModel
 from dataloading.LitDataloader import LitStegoDataModule
 from tools.log_utils import setup_callbacks_loggers
-from tools.options_utils import get_args_cli_yaml
+from tools.options_utils import get_args_cli_yaml, conf2dict
 
 def main(args):
     """ Main training routine specific for this project. """
 
     seed_everything(args.training.seed)
-    
     datamodule = LitStegoDataModule(args)
     model = LitModel(args, datamodule.in_chans, datamodule.num_classes)
     ckpt_callback, loggers, lr_logger = setup_callbacks_loggers(args)
 
     trainer = Trainer(logger=loggers,
                       callbacks=[ckpt_callback, lr_logger],
-                      gpus=args.training.gpus,
+                      devices=args.training.gpus,
                       min_epochs=args.training.epochs,
                       max_epochs=args.training.epochs,
-                      precision=args.training.precision,
-                      amp_backend='native',
-                      amp_level=args.training.amp_level,
+                      precision=str(args.training.precision) + '-mixed',
                       log_every_n_steps=100,
-                      flush_logs_every_n_steps=100,
-                      accelerator='ddp' if len(args.training.gpus or '') > 1 else None,
+                      accelerator='gpu',
                       benchmark=True,
-                      sync_batchnorm=len(args.training.gpus or '') > 1,
-                      resume_from_checkpoint=args.ckpt.resume_from)
+                      sync_batchnorm=len(args.training.gpus or '') > 1)
 
     trainer.logger.log_hyperparams(model.hparams)
-
-    trainer.fit(model, datamodule)
+    trainer.fit(model, datamodule, ckpt_path=args.ckpt.resume_from)
     trainer.test(dataloaders=datamodule, ckpt_path=model.best_ckpt_path)
 
 def run_cli():

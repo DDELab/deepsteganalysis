@@ -3,13 +3,8 @@ Runs a model on a single node across multiple gpus.
 """
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-import os
-from pathlib import Path
-from argparse import ArgumentParser
 
-import torch
-from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.utilities.distributed import rank_zero_only
+from lightning import Trainer, seed_everything
 
 from LitModel import LitModel
 from dataloading.LitDataloader import LitStegoDataModule
@@ -20,30 +15,25 @@ def main(args):
     """ Main training routine specific for this project. """
 
     seed_everything(args.training.seed)
-
+    
     datamodule = LitStegoDataModule(args)
-    model = LitModel.load_from_checkpoint(args.ckpt.resume_from, 
-                                          args=args, 
-                                          in_chans=datamodule.in_chans,
-                                          num_classes=datamodule.num_classes)
+    model = LitModel(args, datamodule.in_chans, datamodule.num_classes)
     ckpt_callback, loggers, lr_logger = setup_callbacks_loggers(args)
 
     trainer = Trainer(logger=loggers,
                       callbacks=[ckpt_callback, lr_logger],
-                      gpus=args.training.gpus,
+                      devices=args.training.gpus,
                       min_epochs=args.training.epochs,
                       max_epochs=args.training.epochs,
-                      precision=16,
-                      amp_backend='native',
-                      amp_level=args.training.amp_level,
-                      log_every_n_steps=100,
-                      flush_logs_every_n_steps=100,
-                      accelerator='ddp' if len(args.training.gpus or '') > 1 else None,
+                      precision=str(args.training.precision) + '-mixed',
+                      log_every_n_steps=200,
+                      accelerator='gpu',
                       benchmark=True,
-                      sync_batchnorm=True,
-                      resume_from_checkpoint=args.ckpt.resume_from)
+                      inference_mode=True,
+                      sync_batchnorm=len(args.training.gpus or '') > 1)
 
-    trainer.test(model, datamodule)
+    ## saves predictions as a table in artifacts
+    trainer.test(model, datamodule, ckpt_path=args.ckpt.resume_from)
 
 def run_cli():
     # os.path.join(os.path.expanduser('~')

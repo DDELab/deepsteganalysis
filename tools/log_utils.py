@@ -1,17 +1,13 @@
-import uuid
 import os
 import random
 from wonderwords import RandomWord
 import hashlib
 from omegaconf import OmegaConf
-import omegaconf
-import sys
+import wandb
 
-from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
-from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import LearningRateMonitor
-from pytorch_lightning.utilities.distributed import _get_rank
+from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
+from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
+from lightning.fabric.utilities.rank_zero import _get_rank
 
 def gen_random_run_name():
     """
@@ -28,9 +24,12 @@ def gen_random_run_name():
 
 def get_data_hash(args, hash_func="md5"):
     string_tobehashed = args.dataset.data_path
-    for class_key in args.dataset.desc.keys():
-        string_tobehashed = string_tobehashed + args.dataset.desc[class_key].path +\
-                            str(args.dataset.desc[class_key].label)
+    try:
+        for class_key in args.dataset.desc.keys():
+            string_tobehashed = string_tobehashed + args.dataset.desc[class_key].path +\
+                                str(args.dataset.desc[class_key].label)
+    except:
+        string_tobehashed = string_tobehashed + args.dataset.desc
 
     if hash_func == "md5":
         result  = hashlib.md5(string_tobehashed.encode())
@@ -75,19 +74,24 @@ def setup_callbacks_loggers(args):
             os.remove(os.path.join(tb_dir, 'hparams.yaml'))
         dump_data_desc(args, os.path.join(args.logging.path, args.logging.project, data_hash))
 
-    wandb_logger = WandbLogger(project=args.logging.project,
-                               dir=log_path,
-                               name=args.logging.eid,
-                               entity=args.logging.wandb.team,
-                               mode='online' if args.logging.wandb.activate==True else 'offline',
-                               id=get_name_hash(args.logging.eid),
-                               resume=get_name_hash(args.logging.eid) if args.ckpt.resume_from is not None else None)
+    print("Log path:", log_path)
+    wandb_logger = WandbLogger(
+        project=args.logging.project,
+        dir=log_path,
+        name=args.logging.eid,
+        entity=args.logging.wandb.team,
+        mode='online' if args.logging.wandb.activate==True else 'offline',
+        id=get_name_hash(args.logging.eid),
+        settings=wandb.Settings(x_disable_stats=True)
+    )
 
     tb_logger = TensorBoardLogger(tb_dir, name="", version="")
     lr_logger = LearningRateMonitor(logging_interval='epoch')
+    mm = args.logging.monitor.metric
     ckpt_callback = ModelCheckpoint(dirpath=os.path.join(log_path, 'checkpoints'),
-                                    filename='epoch{epoch:02d}-val_wAUC{val/wAUC:.4f}',
+                                    filename='epoch{epoch:02d}-' + mm.replace('/', '_') + '{' + mm + ':.4f}',
                                     auto_insert_metric_name=False,
-                                    save_top_k=5, save_last=True, monitor='val/wAUC', mode='max')
+                                    save_top_k=5, save_last=True, monitor=mm,
+                                    mode=args.logging.monitor.mode)
 
     return ckpt_callback, [wandb_logger, tb_logger], lr_logger

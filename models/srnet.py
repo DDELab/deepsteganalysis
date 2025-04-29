@@ -3,19 +3,13 @@
 Mehdi Boroumand, Mo Chen, and Jessica Fridrich
 http://www.ws.binghamton.edu/fridrich/Research/SRNet.pdf
 '''
-import torch
-import types
-from timm.models.layers import Swish
-from timm.models.layers.adaptive_avgmax_pool import SelectAdaptivePool2d
-from timm.models.layers import create_conv2d, create_pool2d
-import timm
-from torch import nn
-import numpy as np
-from functools import partial
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 # from timm.models.layers.activations_me import SwishMe
 from timm.models.layers import Swish as SwishMe
+import torch
+from timm.models.layers import create_conv2d, create_pool2d
+from torch import nn
 
 class SRNet_layer1(nn.Module):
 
@@ -120,13 +114,13 @@ class SRNet_layer4(nn.Module):
     
     
 class SRNet(nn.Module):
-    def __init__(self, in_chans, num_classes, global_pooling='avg', activation=nn.ReLU(), norm_layer=nn.BatchNorm2d, norm_kwargs={}, **kwargs):
+    def __init__(self, in_chans, num_classes, activation=nn.ReLU(), norm_layer=nn.BatchNorm2d, norm_kwargs={}, **kwargs):
         super(SRNet, self).__init__()
         self.in_chans = in_chans
         self.activation = activation
         self.norm_layer = norm_layer
         self.num_classes = num_classes
-        self.global_pooling = SelectAdaptivePool2d(pool_type=global_pooling, flatten=True)
+        self.global_pooling = nn.AdaptiveAvgPool2d(1)
         
         self.layer_1_specs = [64, 16]
         self.layer_2_specs = [16, 16, 16, 16, 16]
@@ -170,6 +164,6 @@ class SRNet(nn.Module):
     
     def forward(self, x):
         x = self.forward_features(x)
-        x = self.global_pooling(x)
+        x = self.global_pooling(x).squeeze((2,3))
         x = self.fc(x)
         return x

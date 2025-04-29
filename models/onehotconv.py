@@ -5,16 +5,13 @@ http://www.ws.binghamton.edu/fridrich/Research/OneHot_Revised.pdf
 Code adapted from 
 https://github.com/YassineYousfi/OneHotConv
 '''
-import torch
-import types
-from timm.models.layers.adaptive_avgmax_pool import SelectAdaptivePool2d
-from timm.models.layers import create_conv2d, create_pool2d
-import timm
-from torch import nn
-import numpy as np
 from functools import partial
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
+import torch
+from timm.models.layers import create_conv2d, create_pool2d
+from torch import nn
+
 from models.srnet import SRNet_layer1
 
 class OneHotConv_layer1(nn.Module):
@@ -46,7 +43,7 @@ class OneHotConv_layer1(nn.Module):
     
     
 class OneHotConv(nn.Module):
-    def __init__(self, in_chans, num_classes, out_channels=32, global_pooling='avg', activation=nn.ReLU(), norm_layer=nn.BatchNorm2d, norm_kwargs={}, pretrained=False):
+    def __init__(self, in_chans, num_classes, out_channels=32, activation=nn.ReLU(), norm_layer=nn.BatchNorm2d, norm_kwargs={}, pretrained=False):
         super(OneHotConv, self).__init__()
         self.in_chans = in_chans
         self.activation = activation
@@ -54,7 +51,7 @@ class OneHotConv(nn.Module):
         self.num_classes = num_classes
         self.out_channels = out_channels
 
-        self.global_pooling = SelectAdaptivePool2d(pool_type=global_pooling, flatten=True)
+        self.global_pooling = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Linear(self.out_channels, self.num_classes, bias=True) 
         self.layer1 = OneHotConv_layer1(self.in_chans, 2*self.out_channels, activation=self.activation, norm_layer=self.norm_layer, norm_kwargs=norm_kwargs)
         self.layer2 = SRNet_layer1(2*self.out_channels, self.out_channels, activation=self.activation, norm_layer=self.norm_layer, norm_kwargs=norm_kwargs)
@@ -62,7 +59,7 @@ class OneHotConv(nn.Module):
     def forward_features(self, x):
         x = self.layer1(x)
         x = self.layer2(x)
-        x = self.global_pooling(x)
+        x = self.global_pooling(x).squeeze((2,3))
         return x
     
     def forward(self, x):

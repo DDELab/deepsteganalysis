@@ -16,6 +16,19 @@ def get_args_cli_yaml(cfg_path=""):
     
     return conf
 
+def conf2dict(conf):
+
+    def conf2dict_(conf):
+        new_dict = {}
+        if type(conf) != dict:
+            return conf
+        for k, v in conf.items():
+            new_dict[k] = conf2dict_(v)
+        return new_dict
+
+    conf = OmegaConf.to_container(conf, resolve=True)
+    return conf2dict_(conf)
+
 if __name__ == '__main__':
     args = get_args_cli_yaml(cfg_path="cfg/default.yaml")
     print(OmegaConf.to_yaml(args))
