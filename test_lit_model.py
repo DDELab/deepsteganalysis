@@ -5,7 +5,6 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 from lightning import Trainer, seed_everything
-import os
 
 from LitModel import LitModel
 from dataloading.LitDataloader import LitStegoDataModule
@@ -23,7 +22,7 @@ def main(args):
 
     trainer = Trainer(logger=loggers,
                       callbacks=[ckpt_callback, lr_logger],
-                      devices=args.training.gpus if args.training.gpus else os.cpu_count()//2,
+                      devices=args.training.gpus if args.training.gpus else 1,
                       min_epochs=args.training.epochs,
                       max_epochs=args.training.epochs,
                       precision=str(args.training.precision),
