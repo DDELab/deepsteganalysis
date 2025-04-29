@@ -24,7 +24,7 @@ def main(args):
                       devices=args.training.gpus,
                       min_epochs=args.training.epochs,
                       max_epochs=args.training.epochs,
-                      precision=str(args.training.precision) + '-mixed',
+                      precision=str(args.training.precision),
                       log_every_n_steps=100,
                       accelerator='gpu',
                       benchmark=True,
