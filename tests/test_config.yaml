@@ -6,13 +6,15 @@ logging:
   wandb:
     activate: False
     team: "dde"
+  monitor:
+    metric: 'val/wAUC'
+    mode: 'max'
 
 training:
   seed: 1994
   gpus: null
   epochs: 1
   batch_size: 8
-  amp_level: "O1"
   precision: 32
 
 ckpt:
@@ -62,8 +64,6 @@ dataset:
   train_id: "TRN"
   test_id: "TST"
   val_id: "VAL"
-  # Do not use wilcard now
-  # If pair constraint - make sure class1 is the cover class
   desc:
     class1:
       path: "COVER"
