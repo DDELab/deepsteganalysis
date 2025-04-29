@@ -27,7 +27,7 @@ def main(args):
                       max_epochs=args.training.epochs,
                       precision=str(args.training.precision),
                       log_every_n_steps=200,
-                      accelerator='gpu',
+                      accelerator='gpu' if args.training.gpus else 'cpu',
                       benchmark=True,
                       inference_mode=True,
                       sync_batchnorm=len(args.training.gpus or '') > 1)
