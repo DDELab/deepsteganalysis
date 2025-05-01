@@ -3,7 +3,7 @@ TODO: write these in pytorch to get rid of the numpy conversion decorators
 """
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import roc_curve, auc, roc_auc_score
 import numpy as np
 import torch.nn.functional as F
 import torch
